@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String        @id @default(cuid())
+  role         UserRole      @default(tenant)
+  name         String        @db.VarChar(100)
+  // NOTE: Keunikan phone & accessTokenHash DIKELOLA via partial unique index manual
+  // (migration 20260808040000_partial_unique_soft_delete): UNIQUE ... WHERE deleted_at IS NULL.
+  // JANGAN tambahkan @unique di sini — akan tabrakan & memblokir reuse nilai setelah soft delete.
+  phone              String?    @db.VarChar(20)
+  password           String?    @db.VarChar(255)
+  roomNumber         String?    @map("room_number") @db.VarChar(10)
+  // Portal token disimpan TER-HASH (sha256) + punya masa berlaku; raw hanya keluar sekali saat create/regenerate.
+  accessTokenHash    String?    @map("access_token_hash") @db.VarChar(64)
+  accessTokenExpiresAt DateTime? @map("access_token_expires_at")
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
+  transactions Transaction[]
+
+  @@map("users")
+}
+
+model Transaction {
+  id              String          @id @default(cuid())
+  userId          String?         @map("user_id")
+  type            TransactionType
+  amount          Decimal         @db.Decimal(12, 2)
+  totalPaid       Decimal         @default(0) @map("total_paid") @db.Decimal(12, 2)
+  billingMonth    String?         @map("billing_month") @db.VarChar(20)
+  status          PaymentStatus   @default(unpaid)
+  category        String          @db.VarChar(100)
+  description     String?
+  transactionDate DateTime        @default(dbgenerated("CURRENT_DATE")) @map("transaction_date") @db.Date
+  paymentProofUrl String?         @map("payment_proof_url")
+  isVerified      Boolean         @default(false) @map("is_verified")
+  waNotifiedAt    DateTime?       @map("wa_notified_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  deletedAt       DateTime?       @map("deleted_at")
+  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  installments    Installment[]
+
+  @@map("transactions")
+}
+
+model Installment {
+  id              String    @id @default(cuid())
+  transactionId   String    @map("transaction_id")
+  amount          Decimal   @db.Decimal(12, 2)
+  paymentProofUrl String?   @map("payment_proof_url")
+  isVerified      Boolean   @default(false) @map("is_verified")
+  verifiedAt      DateTime? @map("verified_at")
+  rejectedAt      DateTime? @map("rejected_at")
+  note            String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+  transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("installments")
+}
+
+model SystemSetting {
+  id                Int       @id @default(autoincrement())
+  kostName          String?   @map("kost_name") @db.VarChar(100)
+  bankAccountInfo   String?   @map("bank_account_info")
+  qrisImageUrl      String?   @map("qris_image_url")
+  botWaStatus       Boolean   @default(false) @map("bot_wa_status")
+  defaultBillAmount Decimal?  @map("default_bill_amount") @db.Decimal(12, 2)
+  reminderTime      String?   @map("reminder_time") @db.VarChar(5)
+  reminderFrequency String?   @map("reminder_frequency") @db.VarChar(20)
+  reminderWeekdays  String?   @map("reminder_weekdays") @db.VarChar(20)
+  reminderDates     String?   @map("reminder_dates") @db.VarChar(100)
+  billCreationTime  String?   @map("bill_creation_time") @db.VarChar(5)
+  billCreationFrequency String? @map("bill_creation_frequency") @db.VarChar(20)
+  billCreationWeekdays String? @map("bill_creation_weekdays") @db.VarChar(20)
+  billCreationDates String?   @map("bill_creation_dates") @db.VarChar(100)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  @@map("system_settings")
+}
+
+model sentri_identifiers {
+  id           String       @id @db.VarChar(36)
+  user_id      String       @db.VarChar(36)
+  type         String       @db.VarChar(100)
+  value        String       @unique @db.VarChar(255)
+  created_at   DateTime     @default(now()) @db.Timestamp(6)
+  sentri_users sentri_users @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, type], map: "sentri_identifiers_user_id_type_unique")
+  @@index([user_id], map: "idx_sentri_identifiers_user_id")
+}
+
+model sentri_sessions {
+  id           String       @id @db.VarChar(36)
+  user_id      String       @db.VarChar(36)
+  expires_at   DateTime     @db.Timestamp(6)
+  ip_address   String?      @db.VarChar(45)
+  user_agent   String?
+  replaced_by  String?      @db.VarChar(36)
+  created_at   DateTime     @default(now()) @db.Timestamp(6)
+  sentri_users sentri_users @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_sentri_sessions_user_id")
+}
+
+model sentri_users {
+  id                 String               @id @db.VarChar(36)
+  password_hash      String               @db.VarChar(255)
+  roles              String               @default("[]")
+  created_at         DateTime             @default(now()) @db.Timestamp(6)
+  sentri_identifiers sentri_identifiers[]
+  sentri_sessions    sentri_sessions[]
+}
+
+enum UserRole {
+  admin
+  tenant
+}
+
+enum TransactionType {
+  income
+  expense
+}
+
+enum PaymentStatus {
+  paid
+  unpaid
+  partial
+}

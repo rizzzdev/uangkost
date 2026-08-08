@@ -1,0 +1,410 @@
+<!doctype html>
+
+<html class="dark" lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>SMIK - Manajemen Penghuni</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#a4c9ff',
+              'on-secondary-container': '#00311f',
+              'surface-bright': '#36393f',
+              'secondary-fixed': '#6ffbbe',
+              'surface-container': '#1E1E1E',
+              'on-error-container': '#ffdad6',
+              surface: '#121212',
+              'text-primary': '#E0E0E0',
+              'outline-variant': '#414751',
+              'inverse-primary': '#0060ac',
+              'tertiary-fixed': '#ffdea4',
+              'error-container': '#93000a',
+              'surface-tint': '#a4c9ff',
+              'primary-fixed': '#d4e3ff',
+              'surface-container-low': '#191c21',
+              background: '#101419',
+              'surface-container-lowest': '#0b0e13',
+              'on-tertiary': '#412d00',
+              'expense-coral': '#F87171',
+              'tertiary-fixed-dim': '#fabd34',
+              'on-background': '#e1e2e9',
+              'on-tertiary-fixed': '#261900',
+              'on-tertiary-container': '#4b3500',
+              'surface-variant': '#32353b',
+              'text-secondary': '#9CA3AF',
+              tertiary: '#fabd34',
+              outline: '#8b919d',
+              secondary: '#4edea3',
+              'secondary-container': '#00a572',
+              'surface-dim': '#101419',
+              'on-surface': '#e1e2e9',
+              'on-error': '#690005',
+              'tertiary-container': '#d19900',
+              'income-emerald': '#34D399',
+              'secondary-fixed-dim': '#4edea3',
+              'inverse-surface': '#e1e2e9',
+              'inverse-on-surface': '#2d3036',
+              'on-secondary-fixed': '#002113',
+              'surface-container-highest': '#32353b',
+              error: '#ffb4ab',
+              'on-primary-fixed-variant': '#004883',
+              'primary-fixed-dim': '#a4c9ff',
+              'on-primary-container': '#003a6b',
+              'on-tertiary-fixed-variant': '#5d4200',
+              'on-primary': '#00315d',
+              'on-secondary-fixed-variant': '#005236',
+              'surface-container-high': '#272a30',
+              'primary-container': '#60a5fa',
+              'on-primary-fixed': '#001c39',
+              'on-secondary': '#003824',
+              'on-surface-variant': '#c1c7d3'
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px'
+            },
+            spacing: {
+              'section-padding': '32px',
+              'stack-gap': '12px',
+              gutter: '16px',
+              'container-margin': '24px'
+            },
+            fontFamily: {
+              'headline-lg': ['Manrope'],
+              'headline-md': ['Manrope'],
+              'headline-lg-mobile': ['Manrope'],
+              'body-lg': ['Inter'],
+              'label-md': ['JetBrains Mono'],
+              'headline-sm': ['Manrope'],
+              'body-md': ['Inter']
+            },
+            fontSize: {
+              'headline-lg': ['32px', { lineHeight: '40px', fontWeight: '700' }],
+              'headline-md': ['24px', { lineHeight: '32px', fontWeight: '600' }],
+              'headline-lg-mobile': ['26px', { lineHeight: '32px', fontWeight: '700' }],
+              'body-lg': ['16px', { lineHeight: '24px', fontWeight: '400' }],
+              'label-md': [
+                '12px',
+                { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '500' }
+              ],
+              'headline-sm': ['20px', { lineHeight: '28px', fontWeight: '600' }],
+              'body-md': ['14px', { lineHeight: '20px', fontWeight: '400' }]
+            }
+          }
+        }
+      };
+    </script>
+    <style>
+      body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Inter', sans-serif;
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6,
+      .manrope {
+        font-family: 'Manrope', sans-serif;
+      }
+      .material-symbols-outlined {
+        font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+      }
+      .material-symbols-outlined[data-weight='fill'] {
+        font-variation-settings: 'FILL' 1;
+      }
+    </style>
+  </head>
+  <body class="flex min-h-screen bg-surface text-text-primary">
+    <!-- SideNavBar -->
+    <nav
+      class="py-section-padding gap-stack-gap fixed top-0 left-0 z-40 hidden h-screen w-64 flex-col border-r border-surface-container-low bg-surface-container md:flex dark:border-surface-container-low dark:bg-surface-container"
+    >
+      <div class="px-container-margin mb-8">
+        <h1 class="text-headline-md font-headline-md font-bold text-primary dark:text-primary">
+          SMIK Admin
+        </h1>
+        <p class="font-body-md text-body-md mt-1 text-text-secondary">Management System</p>
+      </div>
+      <div class="flex flex-1 flex-col gap-2 px-4">
+        <a
+          class="font-body-md hover:bg-surface-variant dark:hover:bg-surface-variant/50 flex items-center gap-3 rounded-lg px-4 py-3 text-on-surface-variant transition-colors"
+          href="#"
+        >
+          <span class="material-symbols-outlined">dashboard</span>
+          Dashboard
+        </a>
+        <a
+          class="font-body-md hover:bg-surface-variant dark:hover:bg-surface-variant/50 flex items-center gap-3 rounded-lg px-4 py-3 text-on-surface-variant transition-colors"
+          href="#"
+        >
+          <span class="material-symbols-outlined">payments</span>
+          Finance
+        </a>
+        <a
+          class="flex items-center gap-3 rounded-lg border-r-4 border-primary bg-primary-container/10 px-4 py-3 font-bold text-primary opacity-80 duration-150"
+          href="#"
+        >
+          <span class="material-symbols-outlined">group</span>
+          Tenants
+        </a>
+      </div>
+      <div class="mt-auto flex flex-col gap-2 px-4">
+        <a
+          class="font-body-md hover:bg-surface-variant dark:hover:bg-surface-variant/50 flex items-center gap-3 rounded-lg px-4 py-3 text-on-surface-variant transition-colors"
+          href="#"
+        >
+          <span class="material-symbols-outlined">settings</span>
+          Settings
+        </a>
+        <a
+          class="font-body-md hover:bg-surface-variant dark:hover:bg-surface-variant/50 flex items-center gap-3 rounded-lg px-4 py-3 text-on-surface-variant transition-colors"
+          href="#"
+        >
+          <span class="material-symbols-outlined">logout</span>
+          Logout
+        </a>
+      </div>
+    </nav>
+    <!-- Main Content Area -->
+    <div class="flex w-full flex-1 flex-col md:ml-64">
+      <!-- TopAppBar -->
+      <header
+        class="docked full-width px-container-margin sticky top-0 z-50 flex w-full items-center justify-between bg-background/80 py-4 backdrop-blur-md dark:bg-background/80"
+      >
+        <div class="md:hidden">
+          <span
+            class="font-headline-md text-headline-md font-extrabold text-primary dark:text-primary"
+            >SMIK</span
+          >
+        </div>
+        <div class="hidden md:block">
+          <!-- Empty space for layout balance if needed, or breadcrumbs -->
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="relative hidden sm:block">
+            <span
+              class="material-symbols-outlined absolute top-1/2 left-3 -translate-y-1/2 text-text-secondary"
+              >search</span
+            >
+            <input
+              class="text-body-md w-64 rounded-full border border-outline-variant bg-surface-container-low py-2 pr-4 pl-10 text-text-primary placeholder-text-secondary transition-all focus:ring-2 focus:ring-primary/50 focus:outline-none"
+              placeholder="Search..."
+              type="text"
+            />
+          </div>
+          <button
+            class="rounded-full p-2 text-on-surface-variant transition-all hover:text-primary focus:ring-2 focus:ring-primary/50"
+          >
+            <span class="material-symbols-outlined">notifications</span>
+          </button>
+          <button
+            class="flex items-center gap-2 rounded-full p-2 text-on-surface-variant transition-all hover:text-primary focus:ring-2 focus:ring-primary/50"
+          >
+            <img
+              alt="Admin Profile"
+              class="h-8 w-8 rounded-full border border-outline-variant object-cover"
+              data-alt="A small, circular avatar portrait of a professional property manager in a dark minimalist corporate setting. The lighting is soft and subtle, highlighting a clean and modern aesthetic suitable for a high-end admin dashboard."
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBBD6PaZJsqcQBJFfVm8jx0q0o3wMNiBu1mhLU5TZsHnb6YGgm5Aw8prSlW6k7itmBYmZDWRo_mqDHJsCh0IaizoXdeK07cZVG92fmSfLWG6UTFVXxOEgAouvjQcfOcL4WYhOJO4aj0yeoA5hEbYOPPwEORunCzvakDKJudKFK0RoTwooOCCBdSAW9LIgj8ij3hr8TcSz-R0HCwivpU7XQ9s3b9_p05gvfUPg1cwRRJtU5fqjOfU-7Dzw"
+            />
+            <span class="material-symbols-outlined md:hidden">account_circle</span>
+          </button>
+        </div>
+      </header>
+      <!-- Page Content -->
+      <main class="p-container-margin md:p-section-padding flex-1">
+        <!-- Header Section -->
+        <div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <h2
+            class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-text-primary"
+          >
+            Manajemen Penghuni
+          </h2>
+          <div class="flex items-center gap-4">
+            <div class="relative w-full sm:w-auto">
+              <span
+                class="material-symbols-outlined absolute top-1/2 left-3 -translate-y-1/2 text-text-secondary"
+                >search</span
+              >
+              <input
+                class="text-body-md w-full rounded-lg border border-outline-variant bg-surface-container py-2 pr-4 pl-10 text-text-primary placeholder-text-secondary transition-all focus:ring-2 focus:ring-primary/50 focus:outline-none sm:w-64"
+                placeholder="Cari penghuni, kamar..."
+                type="text"
+              />
+            </div>
+            <button
+              class="font-body-md flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold whitespace-nowrap text-on-primary transition-colors hover:bg-primary-container"
+            >
+              <span class="material-symbols-outlined">add</span>
+              Tambah Penghuni
+            </button>
+          </div>
+        </div>
+        <!-- Tenants Grid -->
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <!-- Tenant Card 1: Menunggak -->
+          <div
+            class="border-surface-variant flex min-h-[220px] flex-col justify-between rounded-xl border bg-surface-container p-6 shadow-lg transition-shadow hover:shadow-xl"
+          >
+            <div class="mb-4 flex items-start justify-between">
+              <div>
+                <span
+                  class="font-label-md text-label-md tracking-wider text-text-secondary uppercase"
+                  >Kamar 101</span
+                >
+              </div>
+              <button
+                class="text-text-secondary transition-colors hover:text-primary"
+                title="Copy Magic Link"
+              >
+                <span class="material-symbols-outlined text-[20px]">content_copy</span>
+              </button>
+            </div>
+            <div class="mb-6">
+              <h3 class="font-headline-md text-headline-md mb-1 text-text-primary">Budi Santoso</h3>
+              <p class="font-body-md text-body-md text-text-secondary">Masuk: 12 Jan 2023</p>
+            </div>
+            <div class="mt-auto flex items-center justify-between">
+              <span
+                class="bg-error-container/20 text-expense-coral font-label-md text-label-md border-expense-coral/30 flex items-center gap-1.5 rounded-full border px-3 py-1 font-semibold"
+              >
+                <span class="bg-expense-coral h-2 w-2 rounded-full"></span>
+                Menunggak
+              </span>
+              <button
+                class="text-expense-coral hover:bg-error-container/20 font-label-md text-label-md border-expense-coral/30 flex items-center gap-2 rounded-lg border px-3 py-1.5 transition-colors"
+              >
+                <svg class="h-4 w-4 fill-current" viewbox="0 0 24 24">
+                  <path
+                    d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"
+                  ></path>
+                </svg>
+                Kirim Pengingat
+              </button>
+            </div>
+          </div>
+          <!-- Tenant Card 2: Selesai -->
+          <div
+            class="border-surface-variant flex min-h-[220px] flex-col justify-between rounded-xl border bg-surface-container p-6 shadow-lg transition-shadow hover:shadow-xl"
+          >
+            <div class="mb-4 flex items-start justify-between">
+              <div>
+                <span
+                  class="font-label-md text-label-md tracking-wider text-text-secondary uppercase"
+                  >Kamar 102</span
+                >
+              </div>
+              <button
+                class="text-text-secondary transition-colors hover:text-primary"
+                title="Copy Magic Link"
+              >
+                <span class="material-symbols-outlined text-[20px]">content_copy</span>
+              </button>
+            </div>
+            <div class="mb-6">
+              <h3 class="font-headline-md text-headline-md mb-1 text-text-primary">Siti Aminah</h3>
+              <p class="font-body-md text-body-md text-text-secondary">Masuk: 05 Mar 2023</p>
+            </div>
+            <div class="mt-auto flex items-center justify-between">
+              <span
+                class="bg-secondary-container/20 text-income-emerald font-label-md text-label-md border-income-emerald/30 flex items-center gap-1.5 rounded-full border px-3 py-1 font-semibold"
+              >
+                <span class="bg-income-emerald h-2 w-2 rounded-full"></span>
+                Selesai
+              </span>
+            </div>
+          </div>
+          <!-- Tenant Card 3: Selesai -->
+          <div
+            class="border-surface-variant flex min-h-[220px] flex-col justify-between rounded-xl border bg-surface-container p-6 shadow-lg transition-shadow hover:shadow-xl"
+          >
+            <div class="mb-4 flex items-start justify-between">
+              <div>
+                <span
+                  class="font-label-md text-label-md tracking-wider text-text-secondary uppercase"
+                  >Kamar 103</span
+                >
+              </div>
+              <button
+                class="text-text-secondary transition-colors hover:text-primary"
+                title="Copy Magic Link"
+              >
+                <span class="material-symbols-outlined text-[20px]">content_copy</span>
+              </button>
+            </div>
+            <div class="mb-6">
+              <h3 class="font-headline-md text-headline-md mb-1 text-text-primary">Ahmad Wijaya</h3>
+              <p class="font-body-md text-body-md text-text-secondary">Masuk: 20 Feb 2023</p>
+            </div>
+            <div class="mt-auto flex items-center justify-between">
+              <span
+                class="bg-secondary-container/20 text-income-emerald font-label-md text-label-md border-income-emerald/30 flex items-center gap-1.5 rounded-full border px-3 py-1 font-semibold"
+              >
+                <span class="bg-income-emerald h-2 w-2 rounded-full"></span>
+                Selesai
+              </span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <!-- BottomNavBar (Mobile Only) -->
+    <nav
+      class="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around rounded-t-xl border-t-0 bg-surface-container/90 px-4 py-2 shadow-lg backdrop-blur-lg md:hidden dark:bg-surface-container/90"
+    >
+      <a
+        class="hover:bg-surface-variant/30 flex flex-col items-center justify-center rounded-xl p-2 text-on-surface-variant transition-colors"
+        href="#"
+      >
+        <span class="material-symbols-outlined">home</span>
+        <span class="font-label-md text-label-md mt-1">Home</span>
+      </a>
+      <a
+        class="hover:bg-surface-variant/30 flex flex-col items-center justify-center rounded-xl p-2 text-on-surface-variant transition-colors"
+        href="#"
+      >
+        <span class="material-symbols-outlined">receipt_long</span>
+        <span class="font-label-md text-label-md mt-1">Bills</span>
+      </a>
+      <a
+        class="hover:bg-surface-variant/30 flex flex-col items-center justify-center rounded-xl p-2 text-on-surface-variant transition-colors"
+        href="#"
+      >
+        <span class="material-symbols-outlined">history</span>
+        <span class="font-label-md text-label-md mt-1">History</span>
+      </a>
+      <a
+        class="flex scale-95 flex-col items-center justify-center rounded-xl bg-primary-container p-2 text-on-primary-container duration-200"
+        href="#"
+      >
+        <span class="material-symbols-outlined" data-weight="fill">group</span>
+        <span class="font-label-md text-label-md mt-1 font-bold">Tenants</span>
+      </a>
+    </nav>
+  </body>
+</html>

@@ -1,0 +1,236 @@
+<!doctype html>
+
+<html class="dark" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>SMIK - Sistem Manajemen Iuran Kost Login</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;family=JetBrains+Mono:wght@500&amp;family=Manrope:wght@600;700;800&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              secondary: '#4edea3',
+              'primary-fixed': '#d4e3ff',
+              'surface-container': '#1E1E1E',
+              'inverse-primary': '#0060ac',
+              'on-surface-variant': '#c1c7d3',
+              'inverse-surface': '#e1e2e9',
+              'on-tertiary-fixed': '#261900',
+              'primary-fixed-dim': '#a4c9ff',
+              'text-primary': '#E0E0E0',
+              'on-tertiary': '#412d00',
+              'tertiary-fixed-dim': '#fabd34',
+              'secondary-fixed': '#6ffbbe',
+              background: '#101419',
+              'on-tertiary-container': '#4b3500',
+              'on-primary-container': '#003a6b',
+              error: '#ffb4ab',
+              'tertiary-container': '#d19900',
+              'inverse-on-surface': '#2d3036',
+              'on-error-container': '#ffdad6',
+              'text-secondary': '#9CA3AF',
+              'on-primary': '#00315d',
+              'surface-bright': '#36393f',
+              'surface-dim': '#101419',
+              'on-error': '#690005',
+              'on-secondary-fixed': '#002113',
+              'on-primary-fixed': '#001c39',
+              'error-container': '#93000a',
+              'on-surface': '#e1e2e9',
+              'expense-coral': '#F87171',
+              'secondary-container': '#00a572',
+              'surface-container-high': '#272a30',
+              'surface-container-lowest': '#0b0e13',
+              'secondary-fixed-dim': '#4edea3',
+              'surface-variant': '#32353b',
+              'outline-variant': '#414751',
+              primary: '#a4c9ff',
+              'primary-container': '#60a5fa',
+              'on-background': '#e1e2e9',
+              'surface-container-highest': '#32353b',
+              'tertiary-fixed': '#ffdea4',
+              'on-primary-fixed-variant': '#004883',
+              'on-secondary-container': '#00311f',
+              'on-tertiary-fixed-variant': '#5d4200',
+              'surface-container-low': '#191c21',
+              outline: '#8b919d',
+              surface: '#121212',
+              'surface-tint': '#a4c9ff',
+              'income-emerald': '#34D399',
+              'on-secondary': '#003824',
+              tertiary: '#fabd34',
+              'on-secondary-fixed-variant': '#005236'
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px'
+            },
+            spacing: {
+              'container-margin': '24px',
+              'stack-gap': '12px',
+              gutter: '16px',
+              'section-padding': '32px'
+            },
+            fontFamily: {
+              'headline-sm': ['Manrope'],
+              'headline-lg': ['Manrope'],
+              'body-md': ['Inter'],
+              'headline-lg-mobile': ['Manrope'],
+              'body-lg': ['Inter'],
+              'headline-md': ['Manrope'],
+              'label-md': ['JetBrains Mono']
+            },
+            fontSize: {
+              'headline-sm': ['20px', { lineHeight: '28px', fontWeight: '600' }],
+              'headline-lg': ['32px', { lineHeight: '40px', fontWeight: '700' }],
+              'body-md': ['14px', { lineHeight: '20px', fontWeight: '400' }],
+              'headline-lg-mobile': ['26px', { lineHeight: '32px', fontWeight: '700' }],
+              'body-lg': ['16px', { lineHeight: '24px', fontWeight: '400' }],
+              'headline-md': ['24px', { lineHeight: '32px', fontWeight: '600' }],
+              'label-md': [
+                '12px',
+                { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '500' }
+              ]
+            }
+          }
+        }
+      };
+    </script>
+    <style>
+      body {
+        background-color: #121212;
+        background-image:
+          radial-gradient(circle at 15% 50%, rgba(164, 201, 255, 0.03) 0%, transparent 50%),
+          radial-gradient(circle at 85% 30%, rgba(164, 201, 255, 0.04) 0%, transparent 50%);
+      }
+      .glow-effect {
+        box-shadow: 0 0 40px -10px rgba(164, 201, 255, 0.1);
+      }
+      .fingerprint-pulse {
+        animation: pulse-glow 2s infinite alternate;
+      }
+      @keyframes pulse-glow {
+        0% {
+          filter: drop-shadow(0 0 2px rgba(164, 201, 255, 0.2));
+          transform: scale(1);
+        }
+        100% {
+          filter: drop-shadow(0 0 8px rgba(164, 201, 255, 0.6));
+          transform: scale(1.02);
+        }
+      }
+    </style>
+  </head>
+  <body
+    class="font-body-md relative flex min-h-screen items-center justify-center overflow-hidden p-4 text-text-primary sm:p-8"
+  >
+    <!-- Background Accents -->
+    <div class="pointer-events-none absolute inset-0 overflow-hidden">
+      <div
+        class="absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[100px]"
+      ></div>
+      <div
+        class="absolute right-[-10%] bottom-[-20%] h-[50%] w-[50%] rounded-full bg-primary/5 blur-[120px]"
+      ></div>
+    </div>
+    <!-- Login Card -->
+    <main
+      class="border-surface-variant glow-effect relative z-10 w-full max-w-[440px] rounded-xl border bg-surface-container p-8 sm:p-12"
+    >
+      <!-- Header / Branding -->
+      <header class="mb-10 flex flex-col items-center gap-2 text-center">
+        <h1 class="font-headline-lg text-headline-lg tracking-tight text-primary">SMIK</h1>
+        <p class="font-body-md text-body-md tracking-wider text-on-surface-variant uppercase">
+          Management System
+        </p>
+      </header>
+      <!-- Form Area -->
+      <form action="#" class="flex flex-col gap-8" onsubmit="event.preventDefault()">
+        <!-- Username Input -->
+        <div class="relative flex flex-col gap-2">
+          <label class="font-label-md text-label-md text-text-secondary uppercase" for="username"
+            >Username</label
+          >
+          <div class="group relative">
+            <span
+              class="material-symbols-outlined absolute top-1/2 left-4 -translate-y-1/2 text-outline-variant transition-colors group-focus-within:text-primary"
+              >person</span
+            >
+            <input
+              autocomplete="username"
+              class="border-surface-variant font-body-md w-full rounded-lg border bg-surface-container-high py-3 pr-4 pl-12 text-text-primary transition-all placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+              id="username"
+              name="username"
+              placeholder="Enter your username"
+              required=""
+              type="text"
+            />
+          </div>
+        </div>
+        <!-- Passkey Visual Anchor -->
+        <div class="relative flex flex-col items-center justify-center gap-6 py-6">
+          <!-- Decorative concentric circles -->
+          <div
+            class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-20"
+          >
+            <div class="absolute h-24 w-24 rounded-full border border-primary"></div>
+            <div
+              class="absolute h-32 w-32 animate-[spin_20s_linear_infinite] rounded-full border border-dashed border-primary"
+            ></div>
+            <div class="absolute h-40 w-40 rounded-full border border-primary/50"></div>
+          </div>
+          <span
+            class="material-symbols-outlined fingerprint-pulse relative z-10 text-[64px] text-primary"
+            style="
+              font-variation-settings:
+                'FILL' 0,
+                'wght' 200;
+            "
+            >fingerprint</span
+          >
+          <p class="font-body-md text-body-md max-w-[240px] text-center text-on-surface-variant">
+            Use your device's passkey for secure, passwordless entry.
+          </p>
+        </div>
+        <!-- Submit Action -->
+        <button
+          class="font-headline-sm text-headline-sm hover:bg-primary-fixed group flex w-full items-center justify-center gap-3 rounded-lg bg-primary py-4 text-on-primary-container transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface-container"
+          type="submit"
+        >
+          <span class="material-symbols-outlined transition-transform group-hover:scale-110"
+            >key</span
+          >
+          Login with Passkey
+        </button>
+      </form>
+      <!-- Footer -->
+      <footer class="border-surface-variant mt-8 border-t pt-6 text-center">
+        <a
+          class="font-body-md text-body-md text-text-secondary underline-offset-4 transition-colors hover:text-primary hover:underline"
+          href="#"
+        >
+          Need help accessing your account?
+        </a>
+      </footer>
+    </main>
+  </body>
+</html>

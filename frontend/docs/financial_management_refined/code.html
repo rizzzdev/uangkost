@@ -1,0 +1,570 @@
+<!doctype html>
+
+<html class="dark" lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>SMIK Admin - Manajemen Keuangan</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              surface: '#121212',
+              'primary-container': '#60a5fa',
+              'tertiary-fixed-dim': '#fabd34',
+              'inverse-surface': '#e1e2e9',
+              'error-container': '#93000a',
+              'on-error-container': '#ffdad6',
+              tertiary: '#fabd34',
+              'on-secondary-fixed': '#002113',
+              'primary-fixed': '#d4e3ff',
+              'primary-fixed-dim': '#a4c9ff',
+              'secondary-fixed-dim': '#4edea3',
+              secondary: '#4edea3',
+              'text-secondary': '#9CA3AF',
+              'surface-container-lowest': '#0b0e13',
+              'inverse-primary': '#0060ac',
+              'income-emerald': '#34D399',
+              'surface-container': '#1E1E1E',
+              'on-secondary': '#003824',
+              'expense-coral': '#F87171',
+              'surface-container-low': '#191c21',
+              background: '#101419',
+              primary: '#a4c9ff',
+              'surface-bright': '#36393f',
+              'surface-tint': '#a4c9ff',
+              'on-primary-container': '#003a6b',
+              'on-secondary-container': '#00311f',
+              'inverse-on-surface': '#2d3036',
+              'surface-container-high': '#272a30',
+              'text-primary': '#E0E0E0',
+              'on-background': '#e1e2e9',
+              'surface-variant': '#32353b',
+              'secondary-container': '#00a572',
+              'on-primary-fixed-variant': '#004883',
+              'tertiary-container': '#d19900',
+              'tertiary-fixed': '#ffdea4',
+              'surface-container-highest': '#32353b',
+              'on-tertiary-container': '#4b3500',
+              'on-tertiary-fixed': '#261900',
+              'on-primary-fixed': '#001c39',
+              outline: '#8b919d',
+              'secondary-fixed': '#6ffbbe',
+              'on-surface-variant': '#c1c7d3',
+              'surface-dim': '#101419',
+              error: '#ffb4ab',
+              'outline-variant': '#414751',
+              'on-surface': '#e1e2e9',
+              'on-secondary-fixed-variant': '#005236',
+              'on-tertiary': '#412d00',
+              'on-tertiary-fixed-variant': '#5d4200',
+              'on-error': '#690005',
+              'on-primary': '#00315d'
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px'
+            },
+            spacing: {
+              'container-margin': '24px',
+              'section-padding': '32px',
+              'stack-gap': '12px',
+              gutter: '16px'
+            },
+            fontFamily: {
+              'body-md': ['Inter'],
+              'body-lg': ['Inter'],
+              'headline-lg-mobile': ['Manrope'],
+              'headline-sm': ['Manrope'],
+              'headline-md': ['Manrope'],
+              'label-md': ['JetBrains Mono'],
+              'headline-lg': ['Manrope']
+            },
+            fontSize: {
+              'body-md': ['14px', { lineHeight: '20px', fontWeight: '400' }],
+              'body-lg': ['16px', { lineHeight: '24px', fontWeight: '400' }],
+              'headline-lg-mobile': ['26px', { lineHeight: '32px', fontWeight: '700' }],
+              'headline-sm': ['20px', { lineHeight: '28px', fontWeight: '600' }],
+              'headline-md': ['24px', { lineHeight: '32px', fontWeight: '600' }],
+              'label-md': [
+                '12px',
+                { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '500' }
+              ],
+              'headline-lg': ['32px', { lineHeight: '40px', fontWeight: '700' }]
+            }
+          }
+        }
+      };
+    </script>
+  </head>
+  <body class="font-body-md flex h-screen overflow-hidden bg-surface text-text-primary antialiased">
+    <!-- SideNavBar -->
+    <aside
+      class="fixed top-0 left-0 z-50 flex h-full h-screen w-64 flex-col bg-surface-container py-6"
+    >
+      <div class="mb-8 flex items-center gap-3 px-6">
+        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary-container">
+          <span class="material-symbols-outlined text-on-primary-container" data-icon="apartment"
+            >apartment</span
+          >
+        </div>
+        <div>
+          <h1 class="text-headline-md font-headline-md font-bold text-primary">SMIK Admin</h1>
+          <p class="font-body-md text-body-md text-text-secondary">Manajemen Kost</p>
+        </div>
+      </div>
+      <nav class="flex-1 space-y-2 px-4">
+        <a
+          class="hover:bg-surface-variant font-body-md text-body-md flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 text-text-secondary transition-colors duration-200 hover:text-on-surface active:scale-95"
+          href="#"
+        >
+          <span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+          Dashboard
+        </a>
+        <a
+          class="font-body-md text-body-md flex cursor-pointer items-center gap-3 rounded-lg border-r-4 border-primary bg-primary-container/10 px-4 py-3 font-bold text-primary transition-colors duration-200 active:scale-95"
+          href="#"
+        >
+          <span
+            class="material-symbols-outlined"
+            data-icon="payments"
+            style="font-variation-settings: 'FILL' 1"
+            >payments</span
+          >
+          Keuangan
+        </a>
+        <a
+          class="hover:bg-surface-variant font-body-md text-body-md flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 text-text-secondary transition-colors duration-200 hover:text-on-surface active:scale-95"
+          href="#"
+        >
+          <span class="material-symbols-outlined" data-icon="group">group</span>
+          Penyewa
+        </a>
+      </nav>
+      <div class="mt-auto mb-6 px-4">
+        <button
+          class="font-body-md text-body-md hover:bg-primary-fixed w-full cursor-pointer rounded-lg bg-primary py-3 font-semibold text-on-primary transition-colors duration-200 active:scale-95"
+        >
+          Tambah Pembayaran
+        </button>
+      </div>
+      <div class="border-surface-variant mx-4 space-y-2 border-t px-4 pt-4">
+        <a
+          class="hover:bg-surface-variant font-body-md text-body-md flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2 text-text-secondary transition-colors duration-200 hover:text-on-surface active:scale-95"
+          href="#"
+        >
+          <span class="material-symbols-outlined" data-icon="settings">settings</span>
+          Pengaturan
+        </a>
+        <a
+          class="hover:bg-error-container/20 font-body-md text-body-md flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2 text-text-secondary transition-colors duration-200 hover:text-error active:scale-95"
+          href="#"
+        >
+          <span class="material-symbols-outlined" data-icon="logout">logout</span>
+          Keluar
+        </a>
+      </div>
+    </aside>
+    <!-- Main Content Wrapper -->
+    <div class="ml-64 flex h-screen flex-1 flex-col overflow-hidden bg-background">
+      <!-- TopAppBar -->
+      <header
+        class="px-container-margin border-surface-variant/30 fixed top-0 right-0 z-40 flex h-16 w-[calc(100%-16rem)] items-center justify-between border-b bg-background/80 backdrop-blur-md"
+      >
+        <div class="flex flex-1 items-center gap-4">
+          <div
+            class="relative w-64 rounded-lg text-text-secondary transition-colors focus-within:text-primary focus-within:ring-1 focus-within:ring-primary"
+          >
+            <span
+              class="material-symbols-outlined absolute top-1/2 left-3 -translate-y-1/2"
+              data-icon="search"
+              >search</span
+            >
+            <input
+              class="bg-surface-variant/50 font-body-md w-full rounded-lg border-none py-2 pr-4 pl-10 text-sm text-text-primary placeholder:text-text-secondary/50 focus:ring-0"
+              placeholder="Cari..."
+              type="text"
+            />
+          </div>
+        </div>
+        <div class="flex items-center gap-4 text-text-secondary">
+          <button
+            class="hover:bg-surface-variant/50 relative rounded-full p-2 transition-opacity hover:text-primary"
+          >
+            <span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+            <span class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-error"></span>
+          </button>
+          <div class="bg-surface-variant mx-2 h-8 w-px"></div>
+          <button
+            class="hover:bg-surface-variant/50 flex items-center gap-2 rounded-full p-1 transition-opacity hover:text-primary"
+          >
+            <span class="material-symbols-outlined text-[32px]" data-icon="account_circle"
+              >account_circle</span
+            >
+          </button>
+        </div>
+      </header>
+      <!-- Main Canvas -->
+      <main class="p-section-padding mt-16 flex-1 overflow-y-auto">
+        <!-- Page Header -->
+        <div class="mb-8 flex items-end justify-between">
+          <div>
+            <h2 class="font-headline-lg text-headline-lg text-text-primary">Manajemen Keuangan</h2>
+            <p class="font-body-md text-body-md mt-1 text-text-secondary">
+              Kelola arus kas, tagihan, dan laporan keuangan.
+            </p>
+          </div>
+          <!-- Toolbar Actions -->
+          <div class="gap-stack-gap flex items-center">
+            <div class="relative">
+              <select
+                class="border-surface-variant font-body-md cursor-pointer appearance-none rounded-lg border bg-surface-container py-2.5 pr-10 pl-4 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              >
+                <option>Bulan Ini (Okt 2023)</option>
+                <option>Bulan Lalu (Sep 2023)</option>
+                <option>Tahun Ini (2023)</option>
+              </select>
+              <span
+                class="material-symbols-outlined pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-text-secondary"
+                data-icon="calendar_month"
+                >calendar_month</span
+              >
+            </div>
+            <button
+              class="border-surface-variant hover:bg-surface-variant font-body-md flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:text-primary"
+            >
+              <span class="material-symbols-outlined text-[18px]" data-icon="picture_as_pdf"
+                >picture_as_pdf</span
+              >
+              Ekspor Laporan
+            </button>
+            <button
+              class="hover:bg-primary-fixed font-body-md flex items-center gap-2 rounded-lg bg-primary-container px-4 py-2.5 text-sm font-semibold text-on-primary-container transition-colors"
+            >
+              <span class="material-symbols-outlined text-[18px]" data-icon="add">add</span>
+              Tambah Transaksi
+            </button>
+          </div>
+        </div>
+        <!-- Summary Cards (Optional added value for finance page) -->
+        <div class="gap-gutter mb-8 grid grid-cols-3">
+          <div class="border-surface-variant/30 rounded-xl border bg-surface-container p-6">
+            <p
+              class="font-label-md text-label-md mb-2 tracking-wider text-text-secondary uppercase"
+            >
+              Total Pemasukan
+            </p>
+            <h3 class="font-headline-md text-headline-md text-income-emerald mb-1">
+              Rp 12.500.000
+            </h3>
+            <p class="font-body-md flex items-center gap-1 text-xs text-text-secondary">
+              <span
+                class="material-symbols-outlined text-income-emerald text-[14px]"
+                data-icon="trending_up"
+                >trending_up</span
+              >
+              +5% dari bulan lalu
+            </p>
+          </div>
+          <div class="border-surface-variant/30 rounded-xl border bg-surface-container p-6">
+            <p
+              class="font-label-md text-label-md mb-2 tracking-wider text-text-secondary uppercase"
+            >
+              Total Pengeluaran
+            </p>
+            <h3 class="font-headline-md text-headline-md text-expense-coral mb-1">Rp 3.200.000</h3>
+            <p class="font-body-md flex items-center gap-1 text-xs text-text-secondary">
+              <span
+                class="material-symbols-outlined text-[14px] text-text-secondary"
+                data-icon="trending_flat"
+                >trending_flat</span
+              >
+              Stabil dari bulan lalu
+            </p>
+          </div>
+          <div class="border-surface-variant/30 rounded-xl border bg-surface-container p-6">
+            <p
+              class="font-label-md text-label-md mb-2 tracking-wider text-text-secondary uppercase"
+            >
+              Saldo Bersih
+            </p>
+            <h3 class="font-headline-md text-headline-md mb-1 text-text-primary">Rp 9.300.000</h3>
+          </div>
+        </div>
+        <!-- Data Table Container -->
+        <div
+          class="border-surface-variant/30 overflow-hidden rounded-xl border bg-surface-container shadow-sm"
+        >
+          <div
+            class="border-surface-variant/50 flex items-center justify-between border-b bg-surface-container-high/50 px-6 py-4"
+          >
+            <h3 class="font-headline-sm text-headline-sm text-text-primary">Riwayat Transaksi</h3>
+            <div class="flex gap-2">
+              <button
+                class="hover:bg-surface-variant rounded-md p-1.5 text-text-secondary transition-colors"
+              >
+                <span class="material-symbols-outlined text-[20px]" data-icon="filter_list"
+                  >filter_list</span
+                >
+              </button>
+              <button
+                class="hover:bg-surface-variant rounded-md p-1.5 text-text-secondary transition-colors"
+              >
+                <span class="material-symbols-outlined text-[20px]" data-icon="more_vert"
+                  >more_vert</span
+                >
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="font-body-md w-full border-collapse text-left">
+              <thead>
+                <tr
+                  class="font-label-md text-label-md border-surface-variant/50 border-b bg-surface-container text-text-secondary"
+                >
+                  <th class="px-6 py-4 font-medium tracking-wider uppercase">Tanggal</th>
+                  <th class="px-6 py-4 font-medium tracking-wider uppercase">Deskripsi</th>
+                  <th class="px-6 py-4 font-medium tracking-wider uppercase">Kategori</th>
+                  <th class="px-6 py-4 text-right font-medium tracking-wider uppercase">Nominal</th>
+                  <th class="px-6 py-4 text-center font-medium tracking-wider uppercase">Status</th>
+                  <th class="px-6 py-4 text-right font-medium tracking-wider uppercase">Aksi</th>
+                </tr>
+              </thead>
+              <tbody class="divide-surface-variant/30 divide-y">
+                <!-- Row 1: Income, Success -->
+                <tr class="hover:bg-surface-variant/20 group transition-colors">
+                  <td class="px-6 py-4 text-sm text-text-secondary">12 Okt 2023</td>
+                  <td class="px-6 py-4 font-medium text-text-primary">
+                    Pembayaran Kos Kamar 101<br /><span
+                      class="text-xs font-normal text-text-secondary"
+                      >Budi Santoso</span
+                    >
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="bg-surface-variant border-surface-variant/50 rounded border px-2.5 py-1 text-xs text-text-secondary"
+                      >Sewa</span
+                    >
+                  </td>
+                  <td class="font-label-md text-income-emerald px-6 py-4 text-right">
+                    + Rp 1.500.000
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span
+                      class="bg-income-emerald/10 text-income-emerald border-income-emerald/20 inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium"
+                    >
+                      <span class="bg-income-emerald mr-1.5 h-1.5 w-1.5 rounded-full"></span>
+                      Selesai
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <button
+                      class="p-1 text-text-secondary transition-colors hover:text-primary"
+                      title="Detail"
+                    >
+                      <span class="material-symbols-outlined text-[20px]" data-icon="chevron_right"
+                        >chevron_right</span
+                      >
+                    </button>
+                  </td>
+                </tr>
+                <!-- Row 2: Expense, Success -->
+                <tr class="hover:bg-surface-variant/20 group transition-colors">
+                  <td class="px-6 py-4 text-sm text-text-secondary">10 Okt 2023</td>
+                  <td class="px-6 py-4 font-medium text-text-primary">Tagihan Listrik PLN</td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="bg-surface-variant border-surface-variant/50 rounded border px-2.5 py-1 text-xs text-text-secondary"
+                      >Operasional</span
+                    >
+                  </td>
+                  <td class="font-label-md text-expense-coral px-6 py-4 text-right">
+                    - Rp 850.000
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span
+                      class="bg-income-emerald/10 text-income-emerald border-income-emerald/20 inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium"
+                    >
+                      <span class="bg-income-emerald mr-1.5 h-1.5 w-1.5 rounded-full"></span>
+                      Selesai
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <button
+                      class="p-1 text-text-secondary transition-colors hover:text-primary"
+                      title="Detail"
+                    >
+                      <span class="material-symbols-outlined text-[20px]" data-icon="chevron_right"
+                        >chevron_right</span
+                      >
+                    </button>
+                  </td>
+                </tr>
+                <!-- Row 3: Income, Pending with Verification Action -->
+                <tr
+                  class="hover:bg-surface-variant/20 group bg-surface-variant/5 transition-colors"
+                >
+                  <td class="px-6 py-4 text-sm text-text-secondary">08 Okt 2023</td>
+                  <td class="px-6 py-4 font-medium text-text-primary">
+                    Pembayaran Kos Kamar 204<br /><span
+                      class="text-xs font-normal text-text-secondary"
+                      >Siti Aminah</span
+                    >
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="bg-surface-variant border-surface-variant/50 rounded border px-2.5 py-1 text-xs text-text-secondary"
+                      >Sewa</span
+                    >
+                  </td>
+                  <td class="font-label-md text-income-emerald px-6 py-4 text-right">
+                    + Rp 1.500.000
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span
+                      class="inline-flex items-center rounded-full border border-tertiary/20 bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary"
+                    >
+                      <span class="mr-1.5 h-1.5 w-1.5 rounded-full bg-tertiary"></span>
+                      Pending
+                    </span>
+                  </td>
+                  <td class="flex justify-end gap-2 px-6 py-4 text-right">
+                    <button
+                      class="flex items-center gap-1.5 rounded border border-primary-container/30 bg-primary-container/10 px-3 py-1.5 text-xs font-medium text-primary-container transition-colors hover:bg-primary-container/20"
+                    >
+                      <span class="material-symbols-outlined text-[16px]" data-icon="receipt_long"
+                        >receipt_long</span
+                      >
+                      Verifikasi
+                    </button>
+                  </td>
+                </tr>
+                <!-- Row 4: Expense, Failed -->
+                <tr class="hover:bg-surface-variant/20 group transition-colors">
+                  <td class="px-6 py-4 text-sm text-text-secondary">05 Okt 2023</td>
+                  <td class="px-6 py-4 font-medium text-text-primary">Perbaikan Pompa Air</td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="bg-surface-variant border-surface-variant/50 rounded border px-2.5 py-1 text-xs text-text-secondary"
+                      >Maintenance</span
+                    >
+                  </td>
+                  <td class="font-label-md text-expense-coral px-6 py-4 text-right">
+                    - Rp 450.000
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span
+                      class="inline-flex items-center rounded-full border border-error/20 bg-error/10 px-2 py-1 text-xs font-medium text-error"
+                    >
+                      <span class="mr-1.5 h-1.5 w-1.5 rounded-full bg-error"></span>
+                      Gagal
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <button
+                      class="p-1 text-text-secondary transition-colors hover:text-primary"
+                      title="Detail"
+                    >
+                      <span class="material-symbols-outlined text-[20px]" data-icon="chevron_right"
+                        >chevron_right</span
+                      >
+                    </button>
+                  </td>
+                </tr>
+                <!-- Row 5: Income, Pending -->
+                <tr class="hover:bg-surface-variant/20 group transition-colors">
+                  <td class="px-6 py-4 text-sm text-text-secondary">02 Okt 2023</td>
+                  <td class="px-6 py-4 font-medium text-text-primary">
+                    Denda Keterlambatan - Kmr 105
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="bg-surface-variant border-surface-variant/50 rounded border px-2.5 py-1 text-xs text-text-secondary"
+                      >Lainnya</span
+                    >
+                  </td>
+                  <td class="font-label-md text-income-emerald px-6 py-4 text-right">
+                    + Rp 50.000
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span
+                      class="inline-flex items-center rounded-full border border-tertiary/20 bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary"
+                    >
+                      <span class="mr-1.5 h-1.5 w-1.5 rounded-full bg-tertiary"></span>
+                      Pending
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <button
+                      class="p-1 text-text-secondary transition-colors hover:text-primary"
+                      title="Detail"
+                    >
+                      <span class="material-symbols-outlined text-[20px]" data-icon="chevron_right"
+                        >chevron_right</span
+                      >
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Pagination -->
+          <div
+            class="border-surface-variant/50 flex items-center justify-between border-t bg-surface-container-low/30 px-6 py-4"
+          >
+            <span class="font-body-md text-sm text-text-secondary"
+              >Menampilkan 1-5 dari 42 transaksi</span
+            >
+            <div class="flex gap-1">
+              <button
+                class="hover:bg-surface-variant rounded p-1 text-text-secondary disabled:opacity-50"
+                disabled=""
+              >
+                <span class="material-symbols-outlined text-[20px]" data-icon="chevron_left"
+                  >chevron_left</span
+                >
+              </button>
+              <button
+                class="h-8 w-8 rounded border border-primary/20 bg-primary/10 text-sm font-medium text-primary"
+              >
+                1
+              </button>
+              <button
+                class="hover:bg-surface-variant h-8 w-8 rounded text-sm font-medium text-text-secondary"
+              >
+                2
+              </button>
+              <button
+                class="hover:bg-surface-variant h-8 w-8 rounded text-sm font-medium text-text-secondary"
+              >
+                3
+              </button>
+              <button class="hover:bg-surface-variant rounded p-1 text-text-secondary">
+                <span class="material-symbols-outlined text-[20px]" data-icon="chevron_right"
+                  >chevron_right</span
+                >
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

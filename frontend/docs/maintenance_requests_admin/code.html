@@ -1,0 +1,509 @@
+<!doctype html>
+
+<html class="dark" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Maintenance Requests - SMIK Admin</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;family=Manrope:wght@600;700;800&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'surface-container': '#1d2025',
+              background: '#101419',
+              outline: '#8b919d',
+              'primary-container': '#60a5fa',
+              'on-primary-fixed-variant': '#004883',
+              'surface-container-low': '#191c21',
+              'surface-container-high': '#272a30',
+              'on-surface-variant': '#c1c7d3',
+              'on-error': '#690005',
+              'on-background': '#e1e2e9',
+              surface: '#121212',
+              'on-surface': '#e1e2e9',
+              'on-secondary-container': '#00311f',
+              'surface-tint': '#a4c9ff',
+              'on-primary': '#00315d',
+              'primary-fixed': '#d4e3ff',
+              'tertiary-container': '#d19900',
+              'primary-fixed-dim': '#a4c9ff',
+              error: '#ffb4ab',
+              'inverse-primary': '#0060ac',
+              secondary: '#4edea3',
+              primary: '#a4c9ff',
+              'on-secondary': '#003824',
+              'secondary-container': '#00a572',
+              'inverse-surface': '#e1e2e9',
+              'surface-bright': '#36393f',
+              'secondary-fixed': '#6ffbbe',
+              'text-primary': '#E0E0E0',
+              'expense-coral': '#F87171',
+              'outline-variant': '#414751',
+              'income-emerald': '#34D399',
+              'on-error-container': '#ffdad6',
+              'error-container': '#93000a',
+              'surface-container-lowest': '#0b0e13',
+              'secondary-fixed-dim': '#4edea3',
+              'inverse-on-surface': '#2d3036',
+              'surface-variant': '#32353b',
+              'on-tertiary': '#412d00',
+              'text-secondary': '#9CA3AF',
+              'on-tertiary-fixed': '#261900',
+              'on-secondary-fixed-variant': '#005236',
+              'on-tertiary-container': '#4b3500',
+              'surface-container-highest': '#32353b',
+              'on-primary-container': '#003a6b',
+              'on-primary-fixed': '#001c39',
+              'on-tertiary-fixed-variant': '#5d4200',
+              'surface-dim': '#101419',
+              'on-secondary-fixed': '#002113',
+              'tertiary-fixed-dim': '#fabd34',
+              tertiary: '#fabd34',
+              'tertiary-fixed': '#ffdea4'
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px'
+            },
+            spacing: {
+              'stack-gap': '12px',
+              'container-margin': '24px',
+              'section-padding': '32px',
+              gutter: '16px'
+            },
+            fontFamily: {
+              'label-md': ['JetBrains Mono'],
+              'headline-lg-mobile': ['Manrope'],
+              'body-md': ['Inter'],
+              'body-lg': ['Inter'],
+              'headline-sm': ['Manrope'],
+              'headline-lg': ['Manrope'],
+              'headline-md': ['Manrope']
+            },
+            fontSize: {
+              'label-md': [
+                '12px',
+                { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '500' }
+              ],
+              'headline-lg-mobile': ['26px', { lineHeight: '32px', fontWeight: '700' }],
+              'body-md': ['14px', { lineHeight: '20px', fontWeight: '400' }],
+              'body-lg': ['16px', { lineHeight: '24px', fontWeight: '400' }],
+              'headline-sm': ['20px', { lineHeight: '28px', fontWeight: '600' }],
+              'headline-lg': ['32px', { lineHeight: '40px', fontWeight: '700' }],
+              'headline-md': ['24px', { lineHeight: '32px', fontWeight: '600' }]
+            }
+          }
+        }
+      };
+    </script>
+    <style>
+      /* Custom scrollbar for Kanban columns */
+      .kanban-col::-webkit-scrollbar {
+        width: 4px;
+      }
+      .kanban-col::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .kanban-col::-webkit-scrollbar-thumb {
+        background: #414751;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body
+    class="text-on-background font-body-md flex h-screen overflow-hidden bg-surface antialiased"
+  >
+    <!-- SideNavBar (Shared Component) -->
+    <nav
+      class="fixed top-0 left-0 z-50 flex h-screen w-64 flex-col bg-surface-container dark:bg-surface-container"
+    >
+      <!-- Header -->
+      <div
+        class="px-container-margin py-section-padding flex flex-col gap-2 bg-surface-container-low dark:bg-surface-container-low"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-primary/20"
+          >
+            <span
+              class="material-symbols-outlined text-primary"
+              style="font-variation-settings: 'FILL' 1"
+              >admin_panel_settings</span
+            >
+          </div>
+          <div>
+            <h2 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary">
+              SMIK Admin
+            </h2>
+            <p class="font-label-md text-label-md text-on-surface-variant">Management System</p>
+          </div>
+        </div>
+      </div>
+      <!-- Navigation Links -->
+      <div class="py-section-padding gap-stack-gap flex h-full flex-col px-4">
+        <!-- Active Tab: Dashboard (Semantic intent for Admin tools) -->
+        <a
+          class="hover:bg-surface-variant dark:hover:bg-surface-variant/50 flex items-center gap-3 rounded-lg border-r-4 border-primary bg-primary-container/10 px-4 py-3 font-bold text-primary opacity-100 transition-colors duration-150"
+          href="#"
+        >
+          <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1"
+            >dashboard</span
+          >
+          <span class="font-body-md text-body-md">Dashboard</span>
+        </a>
+        <a
+          class="font-body-md hover:bg-surface-variant dark:hover:bg-surface-variant/50 flex items-center gap-3 rounded-lg px-4 py-3 text-on-surface-variant transition-colors"
+          href="#"
+        >
+          <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0"
+            >payments</span
+          >
+          <span class="font-body-md text-body-md">Finance</span>
+        </a>
+        <a
+          class="font-body-md hover:bg-surface-variant dark:hover:bg-surface-variant/50 flex items-center gap-3 rounded-lg px-4 py-3 text-on-surface-variant transition-colors"
+          href="#"
+        >
+          <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0"
+            >group</span
+          >
+          <span class="font-body-md text-body-md">Tenants</span>
+        </a>
+        <!-- Custom injected section for Maintenance (Requested by user) -->
+        <div class="mt-8 mb-2 px-4">
+          <p class="font-label-md text-label-md tracking-wider text-outline uppercase">
+            Facilities
+          </p>
+        </div>
+        <a
+          class="font-body-md hover:bg-surface-variant dark:hover:bg-surface-variant/50 flex items-center gap-3 rounded-lg px-4 py-3 text-on-surface-variant transition-colors"
+          href="#"
+        >
+          <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0"
+            >build</span
+          >
+          <span class="font-body-md text-body-md">Maintenance</span>
+        </a>
+      </div>
+      <!-- Footer -->
+      <div
+        class="py-section-padding gap-stack-gap border-surface-variant/30 mt-auto flex flex-col border-t bg-surface-container-low px-4 dark:bg-surface-container-low"
+      >
+        <a
+          class="font-body-md hover:bg-surface-variant dark:hover:bg-surface-variant/50 flex items-center gap-3 rounded-lg px-4 py-2 text-on-surface-variant transition-colors"
+          href="#"
+        >
+          <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0"
+            >settings</span
+          >
+          <span class="font-body-md text-body-md">Settings</span>
+        </a>
+        <a
+          class="text-expense-coral font-body-md hover:bg-expense-coral/10 flex items-center gap-3 rounded-lg px-4 py-2 transition-colors"
+          href="#"
+        >
+          <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0"
+            >logout</span
+          >
+          <span class="font-body-md text-body-md">Logout</span>
+        </a>
+      </div>
+    </nav>
+    <!-- Main Content Area -->
+    <div class="relative ml-64 flex h-screen flex-1 flex-col bg-background">
+      <!-- TopAppBar (Shared Component) -->
+      <header
+        class="docked full-width px-container-margin sticky top-0 z-40 flex w-full items-center justify-between bg-background/80 bg-transparent py-4 backdrop-blur-md dark:bg-background/80"
+      >
+        <div class="flex items-center gap-4">
+          <h1
+            class="font-headline-md text-headline-md font-extrabold tracking-tight text-primary dark:text-primary"
+          >
+            SMIK
+          </h1>
+          <div class="mx-2 h-6 w-px bg-outline-variant"></div>
+          <h2 class="font-headline-sm text-headline-sm text-on-surface">Manajemen Fasilitas</h2>
+        </div>
+        <div class="flex items-center gap-4">
+          <button
+            class="hover:bg-surface-variant/50 rounded-full p-2 text-on-surface-variant transition-all outline-none hover:text-primary focus:ring-2 focus:ring-primary/50"
+          >
+            <span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+          </button>
+          <button
+            class="hover:bg-surface-variant/50 rounded-full p-2 text-on-surface-variant transition-all outline-none hover:text-primary focus:ring-2 focus:ring-primary/50"
+          >
+            <span
+              class="material-symbols-outlined"
+              data-icon="account_circle"
+              style="font-variation-settings: 'FILL' 1"
+              >account_circle</span
+            >
+          </button>
+        </div>
+      </header>
+      <!-- Kanban Board Canvas -->
+      <main class="p-container-margin flex flex-1 flex-col gap-6 overflow-hidden">
+        <!-- Filters / Actions (Minimalist) -->
+        <div class="flex shrink-0 items-center justify-between">
+          <div class="flex gap-3">
+            <button
+              class="font-label-md text-label-md flex items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-high px-4 py-2 text-on-surface transition-colors hover:border-primary"
+            >
+              <span class="material-symbols-outlined text-[18px]">filter_list</span> Filter
+            </button>
+            <button
+              class="font-label-md text-label-md flex items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-high px-4 py-2 text-on-surface transition-colors hover:border-primary"
+            >
+              <span class="material-symbols-outlined text-[18px]">calendar_today</span> This Month
+            </button>
+          </div>
+          <button
+            class="font-body-md text-body-md hover:bg-primary-fixed flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 font-medium text-on-primary shadow-[0_0_15px_rgba(164,201,255,0.15)] transition-colors"
+          >
+            <span class="material-symbols-outlined text-[18px]">add</span> New Request
+          </button>
+        </div>
+        <!-- Board Grid -->
+        <div class="gap-gutter grid flex-1 grid-cols-3 overflow-hidden pb-4">
+          <!-- Column: Pending -->
+          <div
+            class="border-surface-variant/50 flex flex-col overflow-hidden rounded-xl border bg-surface-container-lowest/50"
+          >
+            <div
+              class="border-surface-variant flex items-center justify-between border-b bg-surface-container-lowest p-4"
+            >
+              <div class="flex items-center gap-2">
+                <div
+                  class="h-2.5 w-2.5 rounded-full bg-tertiary shadow-[0_0_8px_rgba(250,189,52,0.4)]"
+                ></div>
+                <h3 class="font-headline-sm text-headline-sm text-on-surface">Pending</h3>
+              </div>
+              <span
+                class="bg-surface-variant font-label-md text-label-md rounded-full px-2 py-0.5 text-on-surface-variant"
+                >3</span
+              >
+            </div>
+            <div class="kanban-col flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+              <!-- Card 1 -->
+              <div
+                class="border-surface-variant group relative cursor-pointer overflow-hidden rounded-lg border bg-surface-container-high p-4 shadow-sm transition-colors hover:border-tertiary/50"
+              >
+                <div class="absolute top-0 left-0 h-full w-1 bg-tertiary"></div>
+                <div class="flex gap-4">
+                  <!-- Thumbnail -->
+                  <div
+                    class="bg-surface-variant h-16 w-16 shrink-0 overflow-hidden rounded-md border border-outline-variant/30"
+                  >
+                    <img
+                      class="h-full w-full object-cover opacity-80 grayscale transition-all duration-300 group-hover:opacity-100 group-hover:grayscale-0"
+                      data-alt="A close-up photograph of a leaking air conditioning unit mounted on a white wall in a dimly lit, minimalist modern apartment bedroom. Water droplets are visible on the plastic casing. The lighting is moody, with subtle blue and gray tones emphasizing the mechanical failure."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuCl1_RGnI9UdSkruAdiP6KGVDmy-6fJUxMgOvMlmjy401p0cVQmwLuYFtFEfxlOPIHszEgNU7EXyRuk2bMEqFbqLygDeJZO6A_17vnHRqsud9tyl8vbH2OdU2o6CpiS0GgcLti4JYJAAupePqsZ1I715dFsz9Xi1VrSyMPCutXTKnxru4wTteO44wt4EnfhSeJ-19VsLH1E0Q4yeULxCgYhyDmbF2bknHA1v_ZCPRApn74CZiLHSHw5xA"
+                    />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="mb-1 flex items-start justify-between">
+                      <span
+                        class="font-label-md text-label-md rounded-sm bg-tertiary/10 px-2 py-0.5 text-tertiary"
+                        >Kmr 102</span
+                      >
+                      <span class="material-symbols-outlined text-[18px] text-outline-variant"
+                        >more_horiz</span
+                      >
+                    </div>
+                    <h4 class="font-body-lg text-body-lg mb-1 truncate text-on-surface">
+                      AC Tidak Dingin &amp; Bocor
+                    </h4>
+                    <p class="font-body-md text-body-md truncate text-text-secondary">
+                      Budi Santoso
+                    </p>
+                  </div>
+                </div>
+                <div
+                  class="border-surface-variant/50 mt-3 flex items-center justify-between border-t pt-3"
+                >
+                  <span class="font-label-md text-label-md flex items-center gap-1 text-outline"
+                    ><span class="material-symbols-outlined text-[14px]">schedule</span> 2 hrs
+                    ago</span
+                  >
+                  <div
+                    class="bg-surface-variant flex h-6 w-6 items-center justify-center rounded-full border border-outline-variant text-[10px] text-on-surface"
+                  >
+                    BS
+                  </div>
+                </div>
+              </div>
+              <!-- Card 2 -->
+              <div
+                class="border-surface-variant group relative cursor-pointer overflow-hidden rounded-lg border bg-surface-container-high p-4 shadow-sm transition-colors hover:border-tertiary/50"
+              >
+                <div class="absolute top-0 left-0 h-full w-1 bg-tertiary"></div>
+                <div class="flex gap-4">
+                  <div
+                    class="bg-surface-variant flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-outline-variant/30"
+                  >
+                    <span class="material-symbols-outlined text-3xl text-outline-variant"
+                      >plumbing</span
+                    >
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="mb-1 flex items-start justify-between">
+                      <span
+                        class="font-label-md text-label-md rounded-sm bg-tertiary/10 px-2 py-0.5 text-tertiary"
+                        >Kmr 205</span
+                      >
+                      <span class="material-symbols-outlined text-[18px] text-outline-variant"
+                        >more_horiz</span
+                      >
+                    </div>
+                    <h4 class="font-body-lg text-body-lg mb-1 truncate text-on-surface">
+                      Keran Air Patah
+                    </h4>
+                    <p class="font-body-md text-body-md truncate text-text-secondary">
+                      Siti Aminah
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Column: In Progress -->
+          <div
+            class="border-surface-variant/50 flex flex-col overflow-hidden rounded-xl border bg-surface-container-lowest/50"
+          >
+            <div
+              class="border-surface-variant flex items-center justify-between border-b bg-surface-container-lowest p-4"
+            >
+              <div class="flex items-center gap-2">
+                <div
+                  class="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_8px_rgba(164,201,255,0.4)]"
+                ></div>
+                <h3 class="font-headline-sm text-headline-sm text-on-surface">In Progress</h3>
+              </div>
+              <span
+                class="bg-surface-variant font-label-md text-label-md rounded-full px-2 py-0.5 text-on-surface-variant"
+                >2</span
+              >
+            </div>
+            <div class="kanban-col flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+              <!-- Card 3 -->
+              <div
+                class="border-surface-variant group relative cursor-pointer overflow-hidden rounded-lg border bg-surface-container-high p-4 shadow-sm transition-colors hover:border-primary/50"
+              >
+                <div class="absolute top-0 left-0 h-full w-1 bg-primary"></div>
+                <div class="flex gap-4">
+                  <div
+                    class="bg-surface-variant h-16 w-16 shrink-0 overflow-hidden rounded-md border border-outline-variant/30"
+                  >
+                    <img
+                      class="h-full w-full object-cover opacity-80 grayscale transition-all duration-300 group-hover:opacity-100 group-hover:grayscale-0"
+                      data-alt="A photograph of a broken electrical socket on a dark gray painted wall in a modern apartment hallway. Exposed wires are slightly visible. The lighting is artificial and dim, creating a high-contrast corporate minimalist aesthetic typical of an admin dashboard photo attachment."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuAHY5uJ2tU8OcUKQsbBgJBdNElNm7miSYsSoRXKl4gjqTmxggfPCz4Ttde9847COxsKAhyp2xduigSTEJTYHOHTe7Pk6abhAsXXWIaY9628l6DD6jSkiAC5382kljpJqDnNcDQ0RbBL9S5J23FcVboA2ZdPWP9m6LCEu21mjddMedBXa0gMVjTZbWWREGzMTQraKfXgOc5T6YlaNgNdHBuxSoVQG_5zaQYyIA8KQY3O2Xb57U1uQG8xyQ"
+                    />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="mb-1 flex items-start justify-between">
+                      <span
+                        class="font-label-md text-label-md rounded-sm bg-primary/10 px-2 py-0.5 text-primary"
+                        >Kmr 310</span
+                      >
+                      <span class="material-symbols-outlined text-[18px] text-outline-variant"
+                        >more_horiz</span
+                      >
+                    </div>
+                    <h4 class="font-body-lg text-body-lg mb-1 truncate text-on-surface">
+                      Stopkontak Terbakar
+                    </h4>
+                    <p class="font-body-md text-body-md truncate text-text-secondary">Ahmad Reza</p>
+                  </div>
+                </div>
+                <div
+                  class="border-surface-variant/50 mt-3 flex items-center justify-between border-t pt-3"
+                >
+                  <span class="font-label-md text-label-md flex items-center gap-1 text-primary"
+                    ><span class="material-symbols-outlined text-[14px]">engineering</span>
+                    Technician Dispatched</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Column: Resolved -->
+          <div
+            class="border-surface-variant/50 flex flex-col overflow-hidden rounded-xl border bg-surface-container-lowest/50 opacity-80 transition-opacity hover:opacity-100"
+          >
+            <div
+              class="border-surface-variant flex items-center justify-between border-b bg-surface-container-lowest p-4"
+            >
+              <div class="flex items-center gap-2">
+                <div
+                  class="bg-income-emerald h-2.5 w-2.5 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.4)]"
+                ></div>
+                <h3 class="font-headline-sm text-headline-sm text-on-surface">Resolved</h3>
+              </div>
+              <span
+                class="bg-surface-variant font-label-md text-label-md rounded-full px-2 py-0.5 text-on-surface-variant"
+                >12</span
+              >
+            </div>
+            <div class="kanban-col flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+              <!-- Card 4 -->
+              <div
+                class="border-surface-variant hover:border-income-emerald/30 group relative cursor-pointer overflow-hidden rounded-lg border bg-surface-container-high p-4 shadow-sm transition-colors"
+              >
+                <div class="bg-income-emerald/50 absolute top-0 left-0 h-full w-1"></div>
+                <div class="flex gap-4">
+                  <div
+                    class="bg-surface-variant flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-outline-variant/30"
+                  >
+                    <span class="material-symbols-outlined text-3xl text-outline-variant"
+                      >lightbulb</span
+                    >
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="mb-1 flex items-start justify-between">
+                      <span
+                        class="font-label-md text-label-md text-income-emerald bg-income-emerald/10 rounded-sm px-2 py-0.5"
+                        >Kmr 105</span
+                      >
+                      <span class="material-symbols-outlined text-income-emerald text-[18px]"
+                        >check_circle</span
+                      >
+                    </div>
+                    <h4
+                      class="font-body-lg text-body-lg mb-1 truncate text-outline line-through decoration-outline/50"
+                    >
+                      Lampu Kamar Mandi Mati
+                    </h4>
+                    <p class="font-body-md text-body-md truncate text-text-secondary">
+                      Diana Putri
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
