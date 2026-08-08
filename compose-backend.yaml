@@ -18,6 +18,8 @@ services:
     build: ./backend
     restart: unless-stopped
     environment:
+      envfile:
+        - ./backend/.env
       # Koneksi DB/Redis yang dijangkau dari dalam container
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
