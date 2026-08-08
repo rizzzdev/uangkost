@@ -27,7 +27,7 @@
     <header
       class="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-outline-variant bg-surface-dim/80 px-4 backdrop-blur-sm lg:justify-end lg:px-6"
     >
-      <BrandHeader size="text" class="lg:hidden" />
+      <BrandHeader size="text" class="lg:hidden" href="/" />
       <div class="flex items-center gap-2">
         <div class="hidden items-center gap-2 sm:flex">
           <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20">
@@ -35,8 +35,14 @@
           </div>
           <span class="hidden body-md text-text-primary md:inline">{userName}</span>
         </div>
-        <Button variant="danger" size="sm" icon="logout" onclick={handleLogout}>
-          <span class="hidden sm:inline">Logout</span>
+        <Button
+          variant="danger"
+          icon="logout"
+          onclick={handleLogout}
+          title="Logout"
+          class="p-2! lg:px-2.5! lg:py-1.5! lg:text-sm"
+        >
+          <span class="hidden lg:inline">Logout</span>
         </Button>
         <Button
           variant="secondary"

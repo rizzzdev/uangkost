@@ -26,27 +26,6 @@ export interface ApiResponse<T> {
 
 // --- Auth Types ---
 
-export interface LoginInput {
-  name: string;
-  password: string;
-}
-
-export interface AuthPayload {
-  userId: string;
-  role: "admin";
-}
-
-export interface AdminProfile {
-  id: string;
-  name: string;
-  phone: string;
-}
-
-export interface LoginResponse {
-  token: string;
-  admin: AdminProfile;
-}
-
 // --- User DTOs ---
 
 export interface CreateTenantInput {
@@ -245,11 +224,4 @@ export interface FinanceSummary {
   balance: number;
   paidCount: number;
   unpaidCount: number;
-}
-
-// --- Scheduler DTOs ---
-
-export interface WaStatusResponse {
-  connected: boolean;
-  qrCode?: string;
 }

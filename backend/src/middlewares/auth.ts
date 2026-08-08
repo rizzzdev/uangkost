@@ -1,7 +1,7 @@
 import type { Request, RequestHandler, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { auth } from "../config/auth.js";
-import { prisma } from "../config/prisma.js";
+import { prisma, NOT_DELETED } from "../config/prisma.js";
 import { env } from "../config/env.js";
 import { findTenantByRawToken } from "../modules/tenants/tenant.service.js";
 import { AppError, asyncHandler } from "./error-handler.js";
@@ -93,7 +93,7 @@ async function loadTenantFromSession(
       id: session.sub,
       role: "tenant",
       isActive: true,
-      deletedAt: null,
+      ...NOT_DELETED,
       accessTokenHash: session.th,
       // Sesi juga mati bila token portal sudah kedaluwarsa (anti konfigurasi TTL terbalik)
       accessTokenExpiresAt: { gt: new Date() },

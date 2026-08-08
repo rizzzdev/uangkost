@@ -1,6 +1,1 @@
-<script lang="ts">
-  import { redirect } from '@sveltejs/kit';
-
-  // Default redirect to login
-  redirect(307, '/login');
-</script>
+<!-- Redirect ke /dashboard (terautentikasi) atau /login (tamu) ditangani di +page.server.ts -->

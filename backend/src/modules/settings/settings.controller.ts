@@ -1,9 +1,10 @@
 import type { Request, Response } from "express";
-import { asyncHandler } from "../../middlewares/error-handler.js";
+import { asyncHandler, errorMessage } from "../../middlewares/error-handler.js";
 import * as settingsService from "./settings.service.js";
 import { ok } from "../../utils/response.js";
 import { validate, updateSettingsSchema } from "../../utils/validation.js";
 import { syncScheduleJobs } from "../scheduler/queue.js";
+import { QRIS_ALLOWED_MIMETYPES, resolveUploadUrl } from "../../middlewares/upload.js";
 
 export const get = asyncHandler(
   async (_req: Request, res: Response): Promise<void> => {
@@ -42,18 +43,13 @@ export const update = asyncHandler(
       try {
         await syncScheduleJobs();
       } catch (err) {
-        console.error(
-          "Gagal sinkronisasi jadwal scheduler:",
-          (err as Error).message,
-        );
+        console.error("Gagal sinkronisasi jadwal scheduler:", errorMessage(err));
       }
     }
 
     ok(res, data);
   },
 );
-
-const QRIS_ALLOWED_MIMETYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export const uploadQrisImage = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
@@ -67,7 +63,7 @@ export const uploadQrisImage = asyncHandler(
       return;
     }
     const data = await settingsService.updateSettings({
-      qrisImageUrl: `/uploads/${file.filename}`,
+      qrisImageUrl: resolveUploadUrl(file.filename),
     });
     ok(res, data);
   },

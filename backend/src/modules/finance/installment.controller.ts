@@ -4,10 +4,11 @@ import * as svc from "./installment.service.js";
 import { param } from "../../utils/request.js";
 import { ok, created } from "../../utils/response.js";
 import { validate, createInstallmentSchema, createInstallmentByAdminSchema, updateInstallmentSchema } from "../../utils/validation.js";
+import { resolveUploadUrl } from "../../middlewares/upload.js";
 
 export const create = asyncHandler(async (req: Request, res: Response) => {
   const input = validate(createInstallmentSchema, req.body);
-  const proofFile = req.file?.filename ? `/uploads/${req.file.filename}` : undefined;
+  const proofFile = req.file?.filename ? resolveUploadUrl(req.file.filename) : undefined;
   const data = await svc.createInstallment(param(req, "id"), input, proofFile);
   created(res, data);
 });
@@ -19,7 +20,7 @@ export const getAll = asyncHandler(async (_req: Request, res: Response) => {
 
 export const createByAdmin = asyncHandler(async (req: Request, res: Response) => {
   const input = validate(createInstallmentByAdminSchema, req.body);
-  const proofFile = req.file?.filename ? `/uploads/${req.file.filename}` : undefined;
+  const proofFile = req.file?.filename ? resolveUploadUrl(req.file.filename) : undefined;
   // autoVerify (string "true" dari FormData atau boolean dari JSON) → langsung terverifikasi
   const body = req.body as Record<string, unknown>;
   const autoVerify = body.autoVerify === true || body.autoVerify === "true";

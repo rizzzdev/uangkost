@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { requireAdmin } from "../../middlewares/auth.js";
 import { env } from "../../config/env.js";
-import { asyncHandler } from "../../middlewares/error-handler.js";
+import { asyncHandler, errorMessage } from "../../middlewares/error-handler.js";
 import { ok } from "../../utils/response.js";
 import { getWaState } from "./wa.client.js";
 import { scanAndSendReminders, createMonthlyBills } from "./worker.js";
@@ -29,7 +29,7 @@ router.post(
         ...result,
       });
     } catch (err) {
-      console.error("[WA trigger] Fatal error:", (err as Error).message);
+      console.error("[WA trigger] Fatal error:", errorMessage(err));
       throw err;
     }
   }),
@@ -46,7 +46,7 @@ router.post(
         ...result,
       });
     } catch (err) {
-      console.error("[Create bills trigger] Fatal error:", (err as Error).message);
+      console.error("[Create bills trigger] Fatal error:", errorMessage(err));
       throw err;
     }
   }),

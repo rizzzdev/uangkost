@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { page } from '$app/stores';
   import { getTenantPortalFeature } from '$lib/features/index.js';
   import {
@@ -112,7 +114,17 @@
 </svelte:head>
 
 <div class="mx-auto min-h-screen max-w-3xl space-y-6 bg-background p-4 sm:p-6">
-  <BrandHeader subtitle="Portal Penghuni" />
+  <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+    <BrandHeader subtitle="Portal Penghuni" />
+    <Button
+      variant="secondary"
+      icon="bar_chart"
+      title="Lihat laporan keuangan publik"
+      onclick={() => goto(resolve('/reports'))}
+    >
+      Lihat Laporan
+    </Button>
+  </div>
 
   {#if initializing || portal.loading}
     <div class="animate-pulse card-surface p-8"></div>

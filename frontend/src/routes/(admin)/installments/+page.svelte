@@ -12,6 +12,7 @@
     Pagination,
     MonthFilter,
     ConfirmDialog,
+    ProofButton,
     askConfirm,
     buildTypeBarData
   } from '$lib/ui/index.js';
@@ -21,7 +22,6 @@
     parseRupiahInput,
     formatRupiahDisplay,
     toDateKeyLocal,
-    assetUrl,
     monthLabelFromDate,
     uniqueMonthLabels,
     useIsMobile
@@ -327,35 +327,25 @@
     <DataTable {columns} rows={pagedRows} {getCell} emptyMessage="Belum ada data cicilan">
       {#snippet children({ row }: { row: InstallmentWithTransaction })}
         <div class="flex items-center justify-end gap-1.5">
-          {#if row.paymentProofUrl}
-            <a
-              href={assetUrl(row.paymentProofUrl)}
-              target="_blank"
-              rel="external noopener"
-              class="inline-flex items-center justify-center btn-secondary p-2 text-xs"
-              title="Lihat bukti"
-            >
-              <Icon name="visibility" size="1rem" />
-            </a>
-          {/if}
-          {#if !row.isVerified && !row.rejectedAt}
-            <Button
-              variant="primary"
-              iconOnly
-              icon="verified"
-              size="sm"
-              title="Verifikasi cicilan"
-              onclick={() => verifyInstallment(row)}
-            />
-            <Button
-              variant="danger"
-              iconOnly
-              icon="block"
-              size="sm"
-              title="Tolak cicilan"
-              onclick={() => rejectInstallment(row)}
-            />
-          {/if}
+          <ProofButton url={row.paymentProofUrl} title="Lihat bukti cicilan" />
+          <Button
+            variant="primary"
+            iconOnly
+            icon="verified"
+            size="sm"
+            title="Verifikasi cicilan"
+            disabled={row.isVerified || Boolean(row.rejectedAt)}
+            onclick={() => verifyInstallment(row)}
+          />
+          <Button
+            variant="danger"
+            iconOnly
+            icon="block"
+            size="sm"
+            title="Tolak cicilan"
+            disabled={row.isVerified || Boolean(row.rejectedAt)}
+            onclick={() => rejectInstallment(row)}
+          />
           <Button
             variant="secondary"
             iconOnly

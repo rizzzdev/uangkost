@@ -30,7 +30,19 @@ const ALLOWED_MIMETYPES = new Set<string>([
   "application/pdf",
 ]);
 
+/** MIME yang boleh untuk gambar QRIS (jalur khusus settings). */
+export const QRIS_ALLOWED_MIMETYPES = new Set<string>([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+/** URL publik file hasil upload dari middleware multer ini. */
+export function resolveUploadUrl(filename: string): string {
+  return `/uploads/${filename}`;
+}
 
 function fileFilter(
   _req: Request,

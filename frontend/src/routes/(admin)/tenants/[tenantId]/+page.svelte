@@ -134,14 +134,24 @@
         Kelola tagihan & catat pembayaran — {tenant?.name ?? 'memuat...'}
       </p>
     </div>
-    <Button
-      variant="secondary"
-      icon="arrow_back"
-      onclick={() => goto(resolve('/tenants'))}
-      title="Kembali ke daftar penghuni"
-    >
-      Kembali
-    </Button>
+    <div class="flex flex-wrap items-center gap-2">
+      <Button
+        variant="secondary"
+        icon="bar_chart"
+        title="Lihat laporan keuangan publik"
+        onclick={() => goto(resolve('/reports'))}
+      >
+        Lihat Laporan
+      </Button>
+      <Button
+        variant="secondary"
+        icon="arrow_back"
+        onclick={() => goto(resolve('/tenants'))}
+        title="Kembali ke daftar penghuni"
+      >
+        Kembali
+      </Button>
+    </div>
   </div>
 
   {#if loading}

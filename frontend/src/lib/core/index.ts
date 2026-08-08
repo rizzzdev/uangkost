@@ -1,5 +1,4 @@
 export { api, ApiError } from './api-client.js';
-export { getAuthStore } from './auth-store.svelte.js';
 export {
   formatRupiahInput,
   parseRupiahInput,

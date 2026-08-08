@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { prisma } from "../../config/prisma.js";
+import { prisma, NOT_DELETED } from "../../config/prisma.js";
 import { cached, cacheInvalidate, CACHE_KEYS } from "../../config/cache.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../middlewares/error-handler.js";
@@ -37,8 +37,6 @@ function toTenantResponse(user: User): TenantResponse {
     updatedAt: user.updatedAt,
   };
 }
-
-const NOT_DELETED = { deletedAt: null } as const;
 
 export async function getAllTenants(): Promise<TenantResponse[]> {
   return cached(CACHE_KEYS.tenantsList, async () => {

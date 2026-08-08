@@ -2,7 +2,9 @@
   import type { Snippet } from 'svelte';
   import Badge from '../atoms/badge.svelte';
   import Card from './card.svelte';
-  import { assetUrl, formatRupiahDisplay, toDateKeyLocal } from '$lib/core/index.js';
+  import InstallmentStatus from './installment-status.svelte';
+  import ProofButton from './proof-button.svelte';
+  import { formatRupiahDisplay, toDateKeyLocal } from '$lib/core/index.js';
   import type { Transaction } from '$lib/features/finance/types.js';
 
   interface Props {
@@ -76,31 +78,11 @@
               <span class="text-text-secondary">— {inst.description}</span>
             {/if}
           </div>
-          <div class="flex items-center gap-2">
-            {#if inst.isVerified}
-              <span
-                class="inline-flex items-center gap-1 rounded-full bg-[#34D399]/20 px-2 py-0.5 text-xs font-medium text-[#34D399]"
-                >Terverifikasi</span
-              >
-            {:else if inst.rejectedAt}
-              <span
-                class="inline-flex items-center gap-1 rounded-full bg-[#F87171]/20 px-2 py-0.5 text-xs font-medium text-[#F87171]"
-                >Ditolak</span
-              >
-            {:else}
-              <span
-                class="inline-flex items-center gap-1 rounded-full bg-[#fabd34]/20 px-2 py-0.5 text-xs font-medium text-[#fabd34]"
-                >Menunggu</span
-              >
-            {/if}
-            {#if inst.paymentProofUrl}
-              <a
-                href={assetUrl(inst.paymentProofUrl)}
-                target="_blank"
-                rel="external noopener"
-                class="text-xs text-primary underline">Bukti</a
-              >
-            {/if}
+          <div class="flex items-center gap-1.5">
+            <InstallmentStatus
+              status={inst.isVerified ? 'verified' : inst.rejectedAt ? 'rejected' : 'pending'}
+            />
+            <ProofButton url={inst.paymentProofUrl} title="Lihat bukti cicilan" />
           </div>
         </div>
       {/each}

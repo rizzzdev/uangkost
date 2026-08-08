@@ -1,4 +1,4 @@
-import { prisma } from "../../config/prisma.js";
+import { prisma, NOT_DELETED } from "../../config/prisma.js";
 import { cached, cacheInvalidate, cacheInvalidatePattern, CACHE_KEYS } from "../../config/cache.js";
 import { AppError } from "../../middlewares/error-handler.js";
 import type { Prisma } from "@prisma/client";
@@ -11,14 +11,16 @@ import type {
   MonthlyReportResponse,
 } from "../../types/index.js";
 
-const NOT_DELETED = { deletedAt: null } as const;
-
 type TransactionWithRelations = Prisma.TransactionGetPayload<{
   include: {
     user: { select: { name: true; roomNumber: true } };
     installments: true;
   };
 }>;
+
+function toDateKey(d: Date): string {
+  return d.toISOString().split("T")[0]!;
+}
 
 function toTransactionResponse(tx: TransactionWithRelations): TransactionResponse {
   return {
@@ -31,7 +33,7 @@ function toTransactionResponse(tx: TransactionWithRelations): TransactionRespons
     status: tx.status,
     category: tx.category,
     description: tx.description,
-    transactionDate: tx.transactionDate.toISOString().split("T")[0]!,
+    transactionDate: toDateKey(tx.transactionDate),
     paymentProofUrl: tx.paymentProofUrl,
     isVerified: tx.isVerified,
     waNotifiedAt: tx.waNotifiedAt?.toISOString() ?? null,
@@ -108,7 +110,7 @@ function buildWhereClause(
 const DEFAULT_TRANSACTION_INCLUDE = {
   user: { select: { name: true, roomNumber: true } },
   installments: {
-    where: { deletedAt: null },
+    where: { ...NOT_DELETED },
     orderBy: { createdAt: "asc" as const },
   },
 } as const;
@@ -720,11 +722,11 @@ function buildPeriodChart(
       dayMap.set(key, { income: 0, expense: 0 });
     }
     for (const tx of incomes) {
-      const entry = dayMap.get(tx.transactionDate.toISOString().split("T")[0]!);
+      const entry = dayMap.get(toDateKey(tx.transactionDate));
       if (entry) applyContribution(entry, tx, true);
     }
     for (const tx of expenses) {
-      const entry = dayMap.get(tx.transactionDate.toISOString().split("T")[0]!);
+      const entry = dayMap.get(toDateKey(tx.transactionDate));
       if (entry) applyContribution(entry, tx, false);
     }
     return [...dayMap.entries()]
@@ -781,7 +783,7 @@ function toTenantExpense(
     amount: tx.amount.toString(),
     category: tx.category,
     description: tx.description,
-    transactionDate: tx.transactionDate.toISOString().split("T")[0]!,
+    transactionDate: toDateKey(tx.transactionDate),
     createdAt: tx.createdAt,
     userName: tx.user?.name ?? null,
     roomNumber: tx.user?.roomNumber ?? null,
@@ -841,14 +843,10 @@ export async function getMonthlyReport(
   const now = new Date();
   let y = now.getFullYear();
   let m = now.getMonth();
-  if (monthKey && /^\d{4}-\d{2}$/.test(monthKey)) {
-    const py = Number(monthKey.slice(0, 4));
-    const pm = Number(monthKey.slice(5, 7)) - 1;
-    // Tolak bulan/nilai di luar jangkauan (mis. "2026-13") — fallback ke bulan berjalan
-    if (pm >= 0 && pm <= 11 && py >= 2000 && py <= 2100) {
-      y = py;
-      m = pm;
-    }
+  const range = monthKey ? resolveMonthRange(monthKey) : null;
+  if (range) {
+    y = range.gte.getFullYear();
+    m = range.gte.getMonth();
   }
   const key = `${y}-${String(m + 1).padStart(2, "0")}`;
   const startOfMonth = new Date(y, m, 1);
@@ -930,7 +928,7 @@ async function buildMonthlyReport(
     items: txs.map((tx) => ({
       id: tx.id,
       type: tx.type,
-      transactionDate: tx.transactionDate.toISOString().split("T")[0]!,
+      transactionDate: toDateKey(tx.transactionDate),
       description: tx.description,
       category: tx.category,
       amount: tx.amount.toString(),
@@ -997,12 +995,12 @@ async function buildChartData(where: Prisma.TransactionWhereInput): Promise<Char
   for (let i = 0; i < 7; i++) {
     const d = new Date(sevenDaysAgo);
     d.setDate(d.getDate() + i);
-    const key = d.toISOString().split("T")[0]!;
+    const key = toDateKey(d);
     dayMap.set(key, { income: 0, expense: 0 });
   }
 
   for (const tx of dailyTxns) {
-    const key = tx.transactionDate.toISOString().split("T")[0]!;
+    const key = toDateKey(tx.transactionDate);
     const entry = dayMap.get(key);
     if (entry) {
       const amt = Number(tx.amount);

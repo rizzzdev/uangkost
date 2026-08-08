@@ -31,3 +31,6 @@ export async function disconnectPrisma(): Promise<void> {
   await prisma.$disconnect();
   await pool.end();
 }
+
+/** Filter soft-delete generik — pakai di semua query Prisma. */
+export const NOT_DELETED = { deletedAt: null } as const;

@@ -1,4 +1,4 @@
-import { prisma } from "../../config/prisma.js";
+import { prisma, NOT_DELETED } from "../../config/prisma.js";
 import { AppError } from "../../middlewares/error-handler.js";
 import { invalidateFinanceCache } from "./finance.service.js";
 import type {
@@ -7,8 +7,6 @@ import type {
   InstallmentResponse,
   InstallmentWithTransactionResponse,
 } from "../../types/index.js";
-
-const NOT_DELETED = { deletedAt: null } as const;
 
 function computeStatus(amount: number, totalPaid: number): "unpaid" | "partial" | "paid" {
   if (totalPaid >= amount) return "paid";
@@ -75,7 +73,7 @@ export async function createInstallment(
       transactionId,
       isVerified: false,
       rejectedAt: null,
-      deletedAt: null,
+      ...NOT_DELETED,
     },
   });
 
@@ -161,7 +159,7 @@ export async function updateInstallment(
     where: {
       transactionId: tx.id,
       isVerified: true,
-      deletedAt: null,
+      ...NOT_DELETED,
       id: { not: id },
     },
   });
@@ -187,7 +185,7 @@ export async function updateInstallment(
   // Hitung ulang totalPaid (jumlah cicilan terverifikasi)
   const verifiedAgg = await prisma.installment.aggregate({
     _sum: { amount: true },
-    where: { transactionId: tx.id, isVerified: true, deletedAt: null },
+    where: { transactionId: tx.id, isVerified: true, ...NOT_DELETED },
   });
   const totalPaid = Number(verifiedAgg._sum.amount ?? 0);
   const newStatus = computeStatus(Number(tx.amount), totalPaid);

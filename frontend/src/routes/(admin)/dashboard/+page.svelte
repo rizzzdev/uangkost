@@ -35,7 +35,6 @@
     filterMonthKey === 'all' ? 'Semua Bulan' : monthLabelFromKey(filterMonthKey)
   );
   const filterValue = $derived(filterMonthKey === 'all' ? '' : monthLabelFromKey(filterMonthKey));
-  const filterMonths = $derived(data?.availableMonths ?? []);
 
   // --- Laporan Bulanan (PDF) ---
   // Opsi bulan = bulan-tahun unik dari SEMUA transaksi di database (via public-dashboard)
@@ -136,7 +135,7 @@
     </div>
     {#if data}
       <MonthFilter
-        months={filterMonths}
+        months={pdfMonths}
         value={filterValue}
         onchange={onMonthChange}
         label="Periode"
@@ -281,8 +280,8 @@
         </Button>
       </div>
       <p class="mt-3 label-md text-text-secondary">
-        Berisi saldo awal bulan, pemasukan & pengeluaran bulan ini, sisa saldo akhir, tabel semua
-        transaksi, dan perhitungannya.
+        Berisi saldo awal bulan, pemasukan &amp; pengeluaran bulan ini, sisa saldo akhir, dan tabel
+        semua transaksinya.
       </p>
     </Card>
 

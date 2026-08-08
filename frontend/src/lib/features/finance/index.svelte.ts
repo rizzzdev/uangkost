@@ -196,14 +196,6 @@ async function getPublicDashboard(monthKey?: string): Promise<PublicDashboard> {
   return api.get<PublicDashboard>(`/finance/public-dashboard${q}`);
 }
 
-async function getTenantCashflow(headers: Record<string, string>): Promise<{
-  transactions: Transaction[];
-  chartData: ChartData;
-  expenses: TenantExpense[];
-}> {
-  return api.get('/finance/tenant-cashflow', headers);
-}
-
 export function getFinanceFeature() {
   return {
     get transactions() {
@@ -231,7 +223,6 @@ export function getFinanceFeature() {
     getRecentIncome,
     getTenantBills,
     getMonthlyReport,
-    getTenantCashflow,
     getPublicDashboard
   };
 }

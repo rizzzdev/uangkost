@@ -9,6 +9,7 @@ const state = $state({
 });
 
 async function fetchStatus(): Promise<void> {
+  state.busy = true;
   try {
     const data = await api.get<{ connected: boolean; tokenSet?: boolean }>('/wa/status');
     state.connected = data.connected;
@@ -19,16 +20,9 @@ async function fetchStatus(): Promise<void> {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     state.message = `Gagal cek status: ${msg}`;
     state.connected = false;
+  } finally {
+    state.busy = false;
   }
-}
-
-async function connect(): Promise<void> {
-  await fetchStatus();
-}
-
-async function disconnect(): Promise<void> {
-  state.connected = false;
-  state.message = '';
 }
 
 async function triggerScan(): Promise<string> {
@@ -56,8 +50,6 @@ export function getWaFeature() {
       return state.message;
     },
     fetchStatus,
-    connect,
-    disconnect,
     triggerScan
   };
 }

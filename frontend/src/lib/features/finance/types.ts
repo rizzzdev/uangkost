@@ -66,13 +66,6 @@ export interface InstallmentWithTransaction extends Installment {
   };
 }
 
-export interface TransactionFilter {
-  start_date?: string;
-  end_date?: string;
-  type?: string;
-  status?: string;
-}
-
 export interface TenantExpense {
   id: string;
   type: 'income' | 'expense';

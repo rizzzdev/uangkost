@@ -1,20 +1,24 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { getFinanceFeature } from '$lib/features/index.js';
+  import { API_BASE_URL } from '$lib/core/api-client.js';
   import {
     Badge,
     BrandHeader,
+    Button,
     Card,
     Chart,
     Footer,
     Icon,
     MonthFilter,
     PaymentStatusTable,
+    ProofButton,
     buildMonthlyDoughnutData
   } from '$lib/ui/index.js';
   import {
     formatRupiahDisplay,
-    assetUrl,
     billingStatusMeta,
     currentMonthKey,
     monthLabelFromKey,
@@ -27,6 +31,8 @@
   let data = $state<PublicDashboard | null>(null);
   let error = $state<string | null>(null);
   let loading = $state(true);
+  // Deteksi admin (sesi cookie valid) — hanya untuk navigasi tambahan ke dashboard
+  let isAdmin = $state(false);
   // Filter bulan — default: bulan berjalan. '' = Semua Bulan (dikirim sebagai "all")
   let filterMonthKey = $state(currentMonthKey());
 
@@ -51,7 +57,16 @@
     }
   }
 
-  onMount(load);
+  onMount(async () => {
+    load();
+    // Cek sesi admin via cookie (httpOnly) — non-blocking, hanya untuk tombol dashboard
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/me`, { credentials: 'include' });
+      isAdmin = res.ok;
+    } catch {
+      isAdmin = false;
+    }
+  });
 
   function onMonthChange(value: string): void {
     // MonthFilter mengirim '' untuk "Semua Bulan" → internal pakai sentinel "all"
@@ -93,14 +108,37 @@
 <div class="mx-auto min-h-screen max-w-6xl space-y-6 bg-background p-4 sm:p-6">
   <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
     <BrandHeader icon="bar_chart" subtitle="Laporan Publik — {periodLabel}" />
-    {#if data && !error}
-      <MonthFilter
-        months={filterMonths}
-        value={filterValue}
-        onchange={onMonthChange}
-        label="Periode"
-      />
-    {/if}
+    <div class="flex flex-wrap items-center gap-2">
+      {#if data && !error}
+        <MonthFilter
+          months={filterMonths}
+          value={filterValue}
+          onchange={onMonthChange}
+          label="Periode"
+        />
+      {/if}
+      {#if isAdmin}
+        <Button
+          variant="primary"
+          icon="dashboard"
+          title="Buka dashboard admin"
+          onclick={() => goto(resolve('/dashboard'))}
+        >
+          Dashboard
+        </Button>
+      {/if}
+      <Button
+        variant="secondary"
+        icon="arrow_back"
+        title="Kembali ke halaman sebelumnya"
+        onclick={() => {
+          if (history.length > 1) history.back();
+          else goto(resolve('/'));
+        }}
+      >
+        Kembali
+      </Button>
+    </div>
   </div>
 
   {#if error}
@@ -269,19 +307,7 @@
                     >{formatRupiahDisplay(tx.amount)}</td
                   >
                   <td class="py-2.5 text-right">
-                    {#if tx.paymentProofUrl}
-                      <a
-                        href={assetUrl(tx.paymentProofUrl)}
-                        target="_blank"
-                        rel="external noopener"
-                        class="inline-flex items-center justify-center btn-secondary p-2 text-xs"
-                        title="Lihat bukti pembayaran"
-                      >
-                        <Icon name="visibility" size="1rem" />
-                      </a>
-                    {:else}
-                      <span class="body-md text-text-secondary">—</span>
-                    {/if}
+                    <ProofButton url={tx.paymentProofUrl} title="Lihat bukti pembayaran" />
                   </td>
                 </tr>
               {/each}
@@ -328,19 +354,7 @@
                     >{formatRupiahDisplay(ex.amount)}</td
                   >
                   <td class="py-2.5 text-right">
-                    {#if ex.paymentProofUrl}
-                      <a
-                        href={assetUrl(ex.paymentProofUrl)}
-                        target="_blank"
-                        rel="external noopener"
-                        class="inline-flex items-center justify-center btn-secondary p-2 text-xs"
-                        title="Lihat bukti pembayaran"
-                      >
-                        <Icon name="visibility" size="1rem" />
-                      </a>
-                    {:else}
-                      <span class="body-md text-text-secondary">—</span>
-                    {/if}
+                    <ProofButton url={ex.paymentProofUrl} title="Lihat bukti pembayaran" />
                   </td>
                 </tr>
               {/each}

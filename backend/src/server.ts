@@ -3,6 +3,7 @@ import { disconnectPrisma } from "./config/prisma.js";
 import { auth } from "./config/auth.js";
 import { redis } from "./config/redis.js";
 import { waWorker } from "./modules/scheduler/index.js";
+import { errorMessage } from "./middlewares/error-handler.js";
 import app from "./app.js";
 
 // Pastikan worker jalan (side-effect import)
@@ -31,7 +32,7 @@ function gracefulShutdown(signal: string): void {
 
       process.exit(0);
     } catch (err) {
-      console.error("Error during shutdown:", (err as Error).message);
+      console.error("Error during shutdown:", errorMessage(err));
       process.exit(1);
     }
   });

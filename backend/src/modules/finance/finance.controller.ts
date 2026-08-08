@@ -4,6 +4,7 @@ import * as financeService from "./finance.service.js";
 import { param, queryStr } from "../../utils/request.js";
 import { ok, created } from "../../utils/response.js";
 import { validate, createTransactionSchema, updateTransactionSchema } from "../../utils/validation.js";
+import { resolveUploadUrl } from "../../middlewares/upload.js";
 import type { TransactionFilterQuery } from "../../types/index.js";
 
 export const getAll = asyncHandler(
@@ -60,7 +61,7 @@ export const createWithProof = asyncHandler(
       billingMonth: body.billingMonth,
       transactionDate: body.transactionDate,
     });
-    const proofFile = req.file?.filename ? `/uploads/${req.file.filename}` : undefined;
+    const proofFile = req.file?.filename ? resolveUploadUrl(req.file.filename) : undefined;
     
     // Create first, then attach proof
     const tx = await financeService.createTransaction(input);
@@ -104,7 +105,7 @@ export const uploadProof = asyncHandler(
     }
     const data = await financeService.uploadPaymentProof(
       param(req, "id"),
-      `/uploads/${filename}`,
+      resolveUploadUrl(filename),
       req.tenantUser?.id,
     );
     ok(res, data);

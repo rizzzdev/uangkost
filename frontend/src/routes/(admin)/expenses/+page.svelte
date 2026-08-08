@@ -11,6 +11,7 @@
     Pagination,
     MonthFilter,
     ConfirmDialog,
+    ProofButton,
     askConfirm,
     buildTypeBarData
   } from '$lib/ui/index.js';
@@ -23,7 +24,6 @@
     monthLabelFromDate,
     uniqueMonthLabels,
     getTodayLocal,
-    assetUrl,
     useIsMobile
   } from '$lib/core/index.js';
   import type { Transaction } from '$lib/features/finance/types.js';
@@ -238,17 +238,7 @@
     <DataTable {columns} rows={pagedRows} {getCell}>
       {#snippet children({ row }: { row: Transaction })}
         <div class="flex items-center justify-end gap-1.5">
-          {#if row.paymentProofUrl}
-            <a
-              href={assetUrl(row.paymentProofUrl)}
-              target="_blank"
-              rel="external noopener"
-              class="inline-flex items-center justify-center btn-secondary p-2 text-xs"
-              title="Lihat bukti pengeluaran"
-            >
-              <Icon name="visibility" size="1rem" />
-            </a>
-          {/if}
+          <ProofButton url={row.paymentProofUrl} title="Lihat bukti pengeluaran" />
           <Button
             variant="secondary"
             iconOnly

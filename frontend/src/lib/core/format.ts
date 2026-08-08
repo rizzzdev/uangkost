@@ -22,9 +22,7 @@ export function formatBillingMonth(d: Date = new Date()): string {
 
 /** Konversi "2026-08-15" → "Agustus 2026"; fallback ke input bila tidak valid. */
 export function monthLabelFromDate(dateStr: string): string {
-  const [y, m] = dateStr.split('-');
-  if (!y || !m) return dateStr;
-  return `${MONTHS_ID[Number(m) - 1] ?? m} ${y}`;
+  return monthLabelFromKey(dateStr);
 }
 
 /** "2026-08" → "Agustus 2026"; fallback ke input bila tidak valid. */

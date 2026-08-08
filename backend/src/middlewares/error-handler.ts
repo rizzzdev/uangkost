@@ -27,6 +27,11 @@ export function asyncHandler(
   };
 }
 
+/** Ambil pesan aman dari error tak dikenal (catch block dengan unknown). */
+export function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Unknown error";
+}
+
 export function errorHandler(
   err: Error,
   _req: Request,

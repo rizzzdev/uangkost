@@ -2,7 +2,8 @@ import { Worker } from "bullmq";
 import { redis } from "../../config/redis.js";
 import { env } from "../../config/env.js";
 import { sendWaMessage, getWaState } from "./wa.client.js";
-import { prisma } from "../../config/prisma.js";
+import { prisma, NOT_DELETED } from "../../config/prisma.js";
+import { errorMessage } from "../../middlewares/error-handler.js";
 import { formatBillingMonth, invalidateFinanceCache } from "../finance/finance.service.js";
 import { issuePortalToken } from "../tenants/tenant.service.js";
 import { WA_REMINDERS_QUEUE, syncScheduleJobs } from "./queue.js";
@@ -40,7 +41,7 @@ export async function scanAndSendReminders(opts?: {
     where: {
       status: { in: ["unpaid", "partial"] },
       type: "income",
-      deletedAt: null,
+      ...NOT_DELETED,
     },
     include: {
       user: true,
@@ -97,7 +98,7 @@ export async function scanAndSendReminders(opts?: {
       failed++;
       console.error(
         `Gagal kirim WA ke ${bill.user.name}:`,
-        (err as Error).message,
+        errorMessage(err),
       );
     }
 
@@ -139,12 +140,12 @@ export async function createMonthlyBills(): Promise<{
   const month = formatBillingMonth();
 
   const tenants = await prisma.user.findMany({
-    where: { role: "tenant", isActive: true, deletedAt: null },
+    where: { role: "tenant", isActive: true, ...NOT_DELETED },
     select: { id: true },
   });
 
   const existing = await prisma.transaction.findMany({
-    where: { type: "income", billingMonth: month, deletedAt: null },
+    where: { type: "income", billingMonth: month, ...NOT_DELETED },
     select: { userId: true },
   });
   const existingUserIds = new Set(
@@ -188,7 +189,7 @@ export const waWorker = new Worker(
 // Jadwal repeatable job kini dikelola dari pengaturan admin (lihat queue.ts).
 // Terapkan jadwal saat server start — perubahan selanjutnya via endpoint settings.
 void syncScheduleJobs().catch((err) =>
-  console.error("[scheduler] gagal menerapkan jadwal:", (err as Error).message),
+  console.error("[scheduler] gagal menerapkan jadwal:", errorMessage(err)),
 );
 
 waWorker.on("completed", (job) => {

@@ -3,7 +3,6 @@
   import { getFinanceFeature, getTenantFeature } from '$lib/features/index.js';
   import {
     Button,
-    Badge,
     Card,
     Chart,
     DataTable,
@@ -13,6 +12,8 @@
     Pagination,
     MonthFilter,
     ConfirmDialog,
+    ProofButton,
+    InstallmentStatus,
     askConfirm,
     buildTypeBarData
   } from '$lib/ui/index.js';
@@ -25,7 +26,6 @@
     uniqueMonthLabels,
     getTodayLocal,
     toDateKeyLocal,
-    assetUrl,
     billingStatusMeta,
     useIsMobile
   } from '$lib/core/index.js';
@@ -341,45 +341,34 @@
     <DataTable {columns} rows={pagedRows} {getCell}>
       {#snippet children({ row }: { row: Transaction })}
         <div class="flex items-center justify-end gap-1.5">
-          {#if (row.installments?.length ?? 0) > 0}
-            <Button
-              variant="secondary"
-              iconOnly
-              icon="list"
-              size="sm"
-              title="Lihat detail cicilan"
-              onclick={() => openDetail(row)}
-            />
-          {/if}
-          {#if row.paymentProofUrl && !row.isVerified}
-            <Button
-              variant="primary"
-              iconOnly
-              icon="verified"
-              size="sm"
-              title="Verifikasi pembayaran"
-              onclick={() => verifyPayment(row)}
-            />
-            <Button
-              variant="danger"
-              iconOnly
-              icon="block"
-              size="sm"
-              title="Tolak bukti pembayaran"
-              onclick={() => rejectPayment(row)}
-            />
-          {/if}
-          {#if row.paymentProofUrl}
-            <a
-              href={assetUrl(row.paymentProofUrl)}
-              target="_blank"
-              rel="external noopener"
-              class="inline-flex items-center justify-center btn-secondary p-2 text-xs"
-              title="Lihat bukti pembayaran"
-            >
-              <Icon name="visibility" size="1rem" />
-            </a>
-          {/if}
+          <Button
+            variant="secondary"
+            iconOnly
+            icon="list"
+            size="sm"
+            title="Lihat detail cicilan"
+            disabled={!row.installments || row.installments.length === 0}
+            onclick={() => openDetail(row)}
+          />
+          <Button
+            variant="primary"
+            iconOnly
+            icon="verified"
+            size="sm"
+            title="Verifikasi pembayaran"
+            disabled={!row.paymentProofUrl || row.isVerified}
+            onclick={() => verifyPayment(row)}
+          />
+          <Button
+            variant="danger"
+            iconOnly
+            icon="block"
+            size="sm"
+            title="Tolak bukti pembayaran"
+            disabled={!row.paymentProofUrl || row.isVerified}
+            onclick={() => rejectPayment(row)}
+          />
+          <ProofButton url={row.paymentProofUrl} title="Lihat bukti pembayaran" />
           <Button
             variant="secondary"
             iconOnly
@@ -565,7 +554,7 @@
             <p class="label-md font-medium text-text-secondary">Cicilan:</p>
             {#each detailTx.installments as inst (inst.id)}
               <div
-                class="flex items-center justify-between rounded-lg bg-surface-container-low px-3 py-2"
+                class="flex items-center justify-between gap-2 rounded-lg bg-surface-container-low px-3 py-2"
               >
                 <div>
                   <p class="body-md text-text-primary">{formatRupiahDisplay(inst.amount)}</p>
@@ -577,38 +566,28 @@
                   {/if}
                 </div>
                 <div class="flex items-center gap-1.5">
-                  {#if inst.isVerified}
-                    <Badge variant="success">Terverifikasi</Badge>
-                  {:else if inst.rejectedAt}
-                    <Badge variant="danger">Ditolak</Badge>
-                  {:else}
-                    <Badge variant="warning">Menunggu</Badge>
-                    <Button
-                      variant="primary"
-                      iconOnly
-                      icon="verified"
-                      size="sm"
-                      title="Verifikasi cicilan"
-                      onclick={() => verifyInstallment(inst.id)}
-                    />
-                    <Button
-                      variant="danger"
-                      iconOnly
-                      icon="block"
-                      size="sm"
-                      title="Tolak cicilan"
-                      onclick={() => rejectInstallment(inst.id)}
-                    />
-                  {/if}
-                  {#if inst.paymentProofUrl}
-                    <a
-                      href={assetUrl(inst.paymentProofUrl)}
-                      target="_blank"
-                      rel="external noopener"
-                      class="text-xs text-primary underline"
-                      title="Lihat bukti">Bukti</a
-                    >
-                  {/if}
+                  <InstallmentStatus
+                    status={inst.isVerified ? 'verified' : inst.rejectedAt ? 'rejected' : 'pending'}
+                  />
+                  <ProofButton url={inst.paymentProofUrl} title="Lihat bukti cicilan" />
+                  <Button
+                    variant="primary"
+                    iconOnly
+                    icon="verified"
+                    size="sm"
+                    title="Verifikasi cicilan"
+                    disabled={inst.isVerified || Boolean(inst.rejectedAt)}
+                    onclick={() => verifyInstallment(inst.id)}
+                  />
+                  <Button
+                    variant="danger"
+                    iconOnly
+                    icon="block"
+                    size="sm"
+                    title="Tolak cicilan"
+                    disabled={inst.isVerified || Boolean(inst.rejectedAt)}
+                    onclick={() => rejectInstallment(inst.id)}
+                  />
                   <Button
                     variant="danger"
                     iconOnly

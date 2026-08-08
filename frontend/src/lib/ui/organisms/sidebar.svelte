@@ -48,7 +48,7 @@
     : '-translate-x-full'}"
 >
   <div class="mb-8 px-3">
-    <BrandHeader subtitle="Manajemen" />
+    <BrandHeader subtitle="Manajemen" href="/" />
   </div>
 
   <nav class="flex-1 space-y-1 overflow-hidden">

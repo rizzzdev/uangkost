@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: rizzzdev/uangkost:1.0.0
+    image: rizzzdev/uangkost:1.0.1
     restart: unless-stopped
     # Satu sumber konfigurasi: frontend/.env (PUBLIC_API_URL & COOKIE_DOMAIN).
     # HOST/PORT/NODE_ENV adalah nilai khusus container yang tetap.

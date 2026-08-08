@@ -13,4 +13,6 @@ export { default as MonthFilter } from './month-filter.svelte';
 export { default as PaymentStatusTable } from './payment-status-table.svelte';
 export { default as TenantBillCard } from './tenant-bill-card.svelte';
 export { default as BillSummary } from './bill-summary.svelte';
+export { default as ProofButton } from './proof-button.svelte';
+export { default as InstallmentStatus } from './installment-status.svelte';
 export { buildMonthlyDoughnutData, buildTypeBarData } from './chart-builders.js';

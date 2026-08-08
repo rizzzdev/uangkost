@@ -5,7 +5,7 @@ import path from "node:path";
 import { SentriError } from "sentri/core";
 import { auth } from "./config/auth.js";
 import { env } from "./config/env.js";
-import { prisma } from "./config/prisma.js";
+import { prisma, NOT_DELETED } from "./config/prisma.js";
 import { AppError, asyncHandler, errorHandler } from "./middlewares/error-handler.js";
 import { ensureUploadDir } from "./middlewares/upload.js";
 import { optionalTenant, requireAdmin } from "./middlewares/auth.js";
@@ -72,7 +72,7 @@ app.get(
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     // Try to find admin in Prisma users table for extra profile data
     const user = await prisma.user.findFirst({
-      where: { id: req.userId, deletedAt: null },
+      where: { id: req.userId, ...NOT_DELETED },
       select: { id: true, name: true, phone: true, role: true },
     });
 
