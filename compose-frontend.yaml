@@ -16,9 +16,8 @@ services:
   frontend:
     build: ./frontend
     restart: unless-stopped
+    envfile: ./frontend/.env
     environment:
-      envfile:
-        - ./frontend/.env
       # Dipakai browser & SSR — harus URL publik yang bisa diakses klien
       PUBLIC_API_URL: https://api.uangkost.${DOMAIN_NAME}/api
       HOST: 0.0.0.0
