@@ -14,7 +14,7 @@
 
 services:
   frontend:
-    build: ./frontend
+    build: .
     restart: unless-stopped
     environment:
       # Dipakai browser & SSR — harus URL publik yang bisa diakses klien

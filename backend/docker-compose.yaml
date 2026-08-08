@@ -15,7 +15,7 @@
 
 services:
   backend:
-    build: ./backend
+    build: .
     restart: unless-stopped
     environment:
       # Koneksi DB/Redis yang dijangkau dari dalam container
