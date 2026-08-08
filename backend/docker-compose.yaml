@@ -17,7 +17,6 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
-    env_file: ./backend/.env
     environment:
       # Koneksi DB/Redis yang dijangkau dari dalam container
       DATABASE_URL: ${DATABASE_URL}
