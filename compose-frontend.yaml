@@ -14,7 +14,7 @@
 
 services:
   frontend:
-    build: .
+    build: ./frontend
     restart: unless-stopped
     environment:
       # Dipakai browser & SSR — harus URL publik yang bisa diakses klien
@@ -25,11 +25,11 @@ services:
       - proxy
       - backend
     labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.master-bn.rule=Host(`uangkost.${DOMAIN_NAME}`)'
-      - 'traefik.http.routers.master-bn.entrypoints=websecure'
-      - 'traefik.http.routers.master-bn.tls.certresolver=myresolver'
-      - 'traefik.http.services.master-bn.loadbalancer.server.port=4001'
+      - "traefik.enable=true"
+      - "traefik.http.routers.master-bn.rule=Host(`uangkost.${DOMAIN_NAME}`)"
+      - "traefik.http.routers.master-bn.entrypoints=websecure"
+      - "traefik.http.routers.master-bn.tls.certresolver=myresolver"
+      - "traefik.http.services.master-bn.loadbalancer.server.port=4001"
 
 networks:
   proxy:

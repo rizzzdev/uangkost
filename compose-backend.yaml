@@ -15,7 +15,7 @@
 
 services:
   backend:
-    build: .
+    build: ./backend
     restart: unless-stopped
     environment:
       # Koneksi DB/Redis yang dijangkau dari dalam container
@@ -30,11 +30,11 @@ services:
       - proxy
       - backend
     labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.uangkost-api.rule=Host(`api.uangkost.${DOMAIN_NAME}`)'
-      - 'traefik.http.routers.uangkost-api.entrypoints=websecure'
-      - 'traefik.http.routers.uangkost-api.tls.certresolver=myresolver'
-      - 'traefik.http.services.uangkost-api.loadbalancer.server.port=4000'
+      - "traefik.enable=true"
+      - "traefik.http.routers.uangkost-api.rule=Host(`api.uangkost.${DOMAIN_NAME}`)"
+      - "traefik.http.routers.uangkost-api.entrypoints=websecure"
+      - "traefik.http.routers.uangkost-api.tls.certresolver=myresolver"
+      - "traefik.http.services.uangkost-api.loadbalancer.server.port=4000"
 
 volumes:
   uploads_data:
