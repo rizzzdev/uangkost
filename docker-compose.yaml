@@ -1,0 +1,49 @@
+services:
+  frontend:
+    image: rizzzdev/uangkost:1.0.0
+    restart: unless-stopped
+    # Satu sumber konfigurasi: frontend/.env (PUBLIC_API_URL & COOKIE_DOMAIN).
+    # HOST/PORT/NODE_ENV adalah nilai khusus container yang tetap.
+    env_file: ./frontend/.env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4001
+      NODE_ENV: production
+    networks:
+      - proxy
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.master-bn.rule=Host(`uangkost.${DOMAIN_NAME:-example.com}`)"
+      - "traefik.http.routers.master-bn.entrypoints=websecure"
+      - "traefik.http.routers.master-bn.tls.certresolver=myresolver"
+      - "traefik.http.services.master-bn.loadbalancer.server.port=4001"
+
+  backend:
+    image: rizzzdev/api-uangkost:1.0.0 
+    restart: unless-stopped
+    # Satu sumber konfigurasi: backend/.env (aplikasi + DB/Redis + cookie domain).
+    # NODE_ENV di-paksa production khusus container (mengabaikan value dev di .env).
+    env_file: ./backend/.env
+    environment:
+      NODE_ENV: production
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - proxy
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uangkost-api.rule=Host(`api.uangkost.${DOMAIN_NAME:-example.com}`)"
+      - "traefik.http.routers.uangkost-api.entrypoints=websecure"
+      - "traefik.http.routers.uangkost-api.tls.certresolver=myresolver"
+      - "traefik.http.services.uangkost-api.loadbalancer.server.port=4000"
+
+volumes:
+  uploads_data:
+
+networks:
+  proxy:
+    external: true
+  backend:
+    external: true
