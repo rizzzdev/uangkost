@@ -461,17 +461,16 @@ async function buildPublicDashboard(): Promise<PublicDashboardResponse> {
     await Promise.all([
       getFinanceSummary(),
       getChartData(),
+      // Laporan publik menampilkan SEMUA data bulan berjalan (bukan hanya 5 terbaru)
       prisma.transaction.findMany({
         where: { type: "income", transactionDate: monthRange, ...NOT_DELETED },
         include: DEFAULT_TRANSACTION_INCLUDE,
         orderBy: [{ createdAt: "desc" }, { transactionDate: "desc" }],
-        take: 5,
       }),
       prisma.transaction.findMany({
         where: { type: "expense", transactionDate: monthRange, ...NOT_DELETED },
         include: DEFAULT_TRANSACTION_INCLUDE,
         orderBy: [{ createdAt: "desc" }, { transactionDate: "desc" }],
-        take: 5,
       }),
       prisma.user.findMany({
         where: { role: "tenant", isActive: true, ...NOT_DELETED },
@@ -719,7 +718,7 @@ async function buildChartData(where: Prisma.TransactionWhereInput): Promise<Char
         ...where,
         transactionDate: { gte: sevenDaysAgo, lte: now },
       },
-      select: { type: true, amount: true, transactionDate: true },
+      select: { type: true, amount: true, status: true, transactionDate: true },
       orderBy: { transactionDate: "asc" },
     }),
     Promise.all([
@@ -757,8 +756,13 @@ async function buildChartData(where: Prisma.TransactionWhereInput): Promise<Char
     const entry = dayMap.get(key);
     if (entry) {
       const amt = Number(tx.amount);
-      if (tx.type === "income") entry.income += amt;
-      else entry.expense += amt;
+      // Pemasukan bar chart hanya menghitung tagihan yang sudah dibayar lunas &
+      // disetujui admin (status "paid") — konsisten dengan agregasi bulanan.
+      if (tx.type === "income") {
+        if (tx.status === "paid") entry.income += amt;
+      } else {
+        entry.expense += amt;
+      }
     }
   }
 

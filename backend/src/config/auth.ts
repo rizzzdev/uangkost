@@ -19,10 +19,12 @@ export const auth = createAuthExpress({
     name: "refresh_token",
     httpOnly: true,
     sameSite: "lax",
+    secure: env.NODE_ENV === "production",
   },
   accessCookie: {
     name: "access_token",
     sameSite: "lax",
+    secure: env.NODE_ENV === "production",
   },
   // Nonaktifkan rate limit di environment development agar mudah dites
   rateLimit: false,

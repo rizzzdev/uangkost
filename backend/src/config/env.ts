@@ -25,6 +25,10 @@ export const env = {
     "sk_dev_uangkost_change_me_123456",
   ),
   FONNTE_TOKEN: optionalEnv("FONNTE_TOKEN", ""),
+  // Domain cookie bersama untuk production multi-subdomain (mis. "example.com")
+  // dipakai frontend (uangkost.example.com) & API (api.uangkost.example.com).
+  // Kosong = cookie host-only (cukup untuk development di localhost).
+  COOKIE_DOMAIN: optionalEnv("COOKIE_DOMAIN", ""),
   // Lama berlaku link portal penghuni (hari) — raw token hanya valid dalam jendela ini
   PORTAL_TOKEN_TTL_DAYS: parseInt(optionalEnv("PORTAL_TOKEN_TTL_DAYS", "90"), 10),
   // Lama sesi cookie tenant (hari) — lebih pendek dari token, perpanjang lewat link lagi

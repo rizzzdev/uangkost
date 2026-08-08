@@ -25,6 +25,8 @@ services:
       NODE_ENV: production
       # CORS & link WA reminder (portal + laporan)
       PUBLIC_URL: ${PUBLIC_URL:-https://uangkost.${DOMAIN_NAME}}
+      # Cookie bersama lintas subdomain (uangkost.<domain> & api.uangkost.<domain>)
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
     volumes:
       - uploads_data:/app/uploads
     networks:

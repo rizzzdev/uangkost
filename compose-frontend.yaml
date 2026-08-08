@@ -22,6 +22,9 @@ services:
       PUBLIC_API_URL: https://api.uangkost.${DOMAIN_NAME}/api
       HOST: 0.0.0.0
       PORT: 4001
+      NODE_ENV: production
+      # Cookie bersama lintas subdomain — harus sama dengan backend (COOKIE_DOMAIN)
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
     networks:
       - proxy
       - backend

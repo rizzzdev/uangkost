@@ -25,6 +25,42 @@ app.use(cors({ origin: env.PUBLIC_URL, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+/**
+ * Tambahkan atribut Domain pada semua Set-Cookie ketika frontend & API berada di
+ * subdomain berbeda (mis. uangkost.example.com & api.uangkost.example.com).
+ * Sentri tidak mendukung opsi `domain` pada cookie config-nya, jadi atribut
+ * disuntikkan langsung ke header lewat res.append (Express memakai append untuk
+ * set/clear cookie). No-op di development (COOKIE_DOMAIN kosong → host-only).
+ */
+function withCookieDomain(): (req: Request, res: Response, next: NextFunction) => void {
+  const rawDomain = env.COOKIE_DOMAIN.trim();
+  if (!rawDomain) return (_req, _res, next) => next();
+  const cookieDomain = rawDomain.replace(/^\./, "");
+
+  /** Tambahkan atribut Domain bila belum ada (idempotent). */
+  function ensureCookieDomain(cookie: string): string {
+    return /;\s*domain=/i.test(cookie) ? cookie : `${cookie}; Domain=${cookieDomain}`;
+  }
+
+  return (_req, res, next) => {
+    const originalAppend = res.append.bind(res) as Response["append"];
+    res.append = ((field: string, value?: string | string[]) => {
+      if (field.toLowerCase() === "set-cookie") {
+        if (typeof value === "string") {
+          value = ensureCookieDomain(value);
+        } else if (Array.isArray(value)) {
+          value = value.map(ensureCookieDomain);
+        }
+      }
+      return originalAppend(field, value);
+    }) as Response["append"];
+    next();
+  };
+}
+
+// Terapkan sebelum semua rute yang menetapkan cookie (auth, portal tenant, dll.)
+app.use(withCookieDomain());
+
 // --- Sentri Auth Server (server mode) ---
 // Mounts: POST /register, /login, /refresh, /logout, GET /me, /me/identifiers, ...
 app.use("/api/auth", auth.router());
