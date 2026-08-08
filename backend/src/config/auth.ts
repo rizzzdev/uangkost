@@ -25,6 +25,6 @@ export const auth = createAuthExpress({
     sameSite: "lax",
   },
   // Nonaktifkan rate limit di environment development agar mudah dites
-  rateLimit: env.NODE_ENV === "development" ? false : undefined,
+  rateLimit: false,
   logger: console,
 });

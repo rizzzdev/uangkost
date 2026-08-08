@@ -1,14 +1,16 @@
 # ============================================================
-# uangkost — Docker Compose (Traefik + Backend + Frontend)
+# uangkost — Backend (compose terpisah agar build tidak OOM)
 #
 # Prasyarat:
 #   - Traefik berjalan di network external "proxy" (entrypoint
 #     `websecure` + certresolver `myresolver` harus sudah ada)
 #   - Network "backend" sudah dibuat:  docker network create backend
 #   - Salin .env.example (root) ke .env lalu sesuaikan nilainya
+#   - Pastikan backend/.env berisi konfigurasi aplikasi (FONNTE_TOKEN, dll)
 #
-# Cara pakai:
-#   docker compose up -d --build
+# Cara pakai (build satu-satu agar RAM tidak penuh):
+#   docker compose -f compose.backend.yml build
+#   docker compose -f compose.backend.yml up -d
 # ============================================================
 
 services:
@@ -34,26 +36,6 @@ services:
       - 'traefik.http.routers.uangkost-api.entrypoints=websecure'
       - 'traefik.http.routers.uangkost-api.tls.certresolver=myresolver'
       - 'traefik.http.services.uangkost-api.loadbalancer.server.port=4000'
-
-  frontend:
-    build: ./frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
-    environment:
-      # Dipakai browser & SSR — harus URL publik yang bisa diakses klien
-      PUBLIC_API_URL: https://api.uangkost.${DOMAIN_NAME}/api
-      HOST: 0.0.0.0
-      PORT: 4001
-    networks:
-      - proxy
-      - backend
-    labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.master-bn.rule=Host(`uangkost.${DOMAIN_NAME}`)'
-      - 'traefik.http.routers.master-bn.entrypoints=websecure'
-      - 'traefik.http.routers.master-bn.tls.certresolver=myresolver'
-      - 'traefik.http.services.master-bn.loadbalancer.server.port=4001'
 
 volumes:
   uploads_data:
