@@ -30,11 +30,42 @@
   let open = $state(false);
   let rootEl = $state<HTMLDivElement>();
 
+  // Pencarian muncul hanya bila opsi banyak (>10); filter dengan debounce 0.5s
+  const showSearch = $derived(options.length > 10);
+  let query = $state('');
+  let debouncedQuery = $state('');
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+
   const selected = $derived(options.find((o) => o.value === value) ?? null);
+
+  const filteredOptions = $derived(
+    showSearch && debouncedQuery
+      ? options.filter((o) => o.label.toLowerCase().includes(debouncedQuery.trim().toLowerCase()))
+      : options
+  );
+
+  function toggleOpen(): void {
+    open = !open;
+    if (open) {
+      query = '';
+      debouncedQuery = '';
+    }
+  }
+
+  function onQueryInput(e: Event): void {
+    query = (e.target as HTMLInputElement).value;
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debouncedQuery = query;
+    }, 500);
+  }
 
   function select(o: DropdownOption): void {
     value = o.value;
     open = false;
+    if (debounceTimer) clearTimeout(debounceTimer);
+    query = '';
+    debouncedQuery = '';
     onselect?.(o.value);
   }
 
@@ -54,7 +85,7 @@
     type="button"
     {id}
     {name}
-    onclick={() => (open = !open)}
+    onclick={toggleOpen}
     class="flex input-field cursor-pointer items-center justify-between gap-2 text-left"
     aria-haspopup="listbox"
     aria-expanded={open}
@@ -79,7 +110,26 @@
       class="absolute left-0 z-20 mt-1 max-h-56 w-full max-w-[calc(100vw-2rem)] min-w-40 overflow-auto card-surface p-1"
       role="listbox"
     >
-      {#each options as o (o.value)}
+      {#if showSearch}
+        <li class="p-1">
+          <div class="relative">
+            <Icon
+              name="search"
+              size="1rem"
+              class="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-text-secondary"
+            />
+            <input
+              type="text"
+              aria-label="Cari opsi"
+              class="input-field w-full py-1.5 pr-2 pl-8 text-sm"
+              placeholder="Cari..."
+              value={query}
+              oninput={onQueryInput}
+            />
+          </div>
+        </li>
+      {/if}
+      {#each filteredOptions as o (o.value)}
         <li>
           <button
             type="button"

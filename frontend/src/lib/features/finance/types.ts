@@ -6,7 +6,7 @@ export interface Installment {
   isVerified: boolean;
   verifiedAt: string | null;
   rejectedAt: string | null;
-  note: string | null;
+  description: string | null;
   createdAt: string;
 }
 
@@ -52,7 +52,7 @@ export interface UpdateTransactionInput {
 
 export interface CreateInstallmentInput {
   amount: number;
-  note?: string;
+  description?: string;
 }
 
 export interface InstallmentWithTransaction extends Installment {

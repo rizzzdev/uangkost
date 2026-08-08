@@ -21,6 +21,8 @@
     parseRupiahInput,
     formatRupiahDisplay,
     monthLabelFromDate,
+    uniqueMonthLabels,
+    getTodayLocal,
     assetUrl,
     useIsMobile
   } from '$lib/core/index.js';
@@ -32,15 +34,16 @@
   let showCreate = $state(false);
   let showEdit = $state(false);
   let editTx = $state<Transaction | null>(null);
-  let form = $state({ amount: 0, description: '' });
-  let editForm = $state({ amount: 0, description: '' });
   let uploadFile = $state<File | null>(null);
   let uploading = $state(false);
   let page = $state(1);
   let filterMonth = $state('');
   const PER_PAGE = 10;
 
-  const today = new Date().toISOString().split('T')[0]!;
+  const today = getTodayLocal();
+
+  let form = $state({ amount: 0, description: '', transactionDate: today });
+  let editForm = $state({ amount: 0, description: '', transactionDate: today });
 
   let chartData = $state<ChartData | null>(null);
   const isMobile = useIsMobile();
@@ -77,7 +80,7 @@
         type: 'expense' as const,
         amount: Number(form.amount),
         description: form.description,
-        transactionDate: today
+        transactionDate: form.transactionDate
       };
 
       if (uploadFile) {
@@ -85,7 +88,7 @@
         fd.append('type', 'expense');
         fd.append('amount', String(form.amount));
         fd.append('description', form.description);
-        fd.append('transactionDate', today);
+        fd.append('transactionDate', form.transactionDate);
         fd.append('paymentProof', uploadFile);
         await fetch(`${API_BASE_URL}/finance/expense-with-proof`, {
           method: 'POST',
@@ -106,7 +109,7 @@
       }
 
       showCreate = false;
-      form = { amount: 0, description: '' };
+      form = { amount: 0, description: '', transactionDate: today };
       uploadFile = null;
       toast.success('Pengeluaran dicatat');
     } catch (err) {
@@ -119,7 +122,11 @@
 
   function openEdit(tx: Transaction) {
     editTx = tx;
-    editForm = { amount: Number(tx.amount), description: tx.description ?? '' };
+    editForm = {
+      amount: Number(tx.amount),
+      description: tx.description ?? '',
+      transactionDate: tx.transactionDate
+    };
     showEdit = true;
   }
 
@@ -129,7 +136,7 @@
       await finance.update(editTx.id, {
         amount: Number(editForm.amount),
         description: editForm.description || null,
-        transactionDate: today
+        transactionDate: editForm.transactionDate
       });
       showEdit = false;
       editTx = null;
@@ -157,9 +164,7 @@
   const totalExpense = $derived(finance.transactions.reduce((s, t) => s + Number(t.amount), 0));
 
   const monthOptions = $derived(
-    [...new Set(finance.transactions.map((t) => monthLabelFromDate(t.transactionDate)))].sort(
-      (a, b) => b.localeCompare(a)
-    )
+    uniqueMonthLabels(finance.transactions.map((t) => monthLabelFromDate(t.transactionDate)))
   );
 
   const filtered = $derived(
@@ -291,6 +296,19 @@
         />
       </div>
       <div>
+        <label for="expense-date-create" class="mb-1.5 block label-md text-text-secondary"
+          >Tanggal</label
+        >
+        <input
+          id="expense-date-create"
+          type="date"
+          class="input-field"
+          value={form.transactionDate}
+          oninput={(e) => (form.transactionDate = (e.target as HTMLInputElement).value)}
+          required
+        />
+      </div>
+      <div>
         <label for="expense-desc-create" class="mb-1.5 block label-md text-text-secondary"
           >Deskripsi</label
         >
@@ -344,6 +362,19 @@
           value={editForm.amount ? formatRupiahInput(editForm.amount) : ''}
           oninput={(e) =>
             (editForm.amount = parseRupiahInput((e.target as HTMLInputElement).value))}
+          required
+        />
+      </div>
+      <div>
+        <label for="expense-date-edit" class="mb-1.5 block label-md text-text-secondary"
+          >Tanggal</label
+        >
+        <input
+          id="expense-date-edit"
+          type="date"
+          class="input-field"
+          value={editForm.transactionDate}
+          oninput={(e) => (editForm.transactionDate = (e.target as HTMLInputElement).value)}
           required
         />
       </div>

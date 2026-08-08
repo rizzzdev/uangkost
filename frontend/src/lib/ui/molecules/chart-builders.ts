@@ -26,30 +26,6 @@ function dayLabels(days: DailyPoint[]): string[] {
   });
 }
 
-/** Bar chart arus kas: 7 hari di desktop, 3 hari di mobile. */
-export function buildCashflowBarData(daily: DailyPoint[], isMobile: boolean): ChartDataInput {
-  const days = daily.slice(isMobile ? -3 : -7);
-  return {
-    labels: dayLabels(days),
-    datasets: [
-      {
-        label: 'Pemasukan',
-        data: days.map((d) => d.income),
-        backgroundColor: '#34D399',
-        borderColor: '#34D399',
-        borderRadius: 6
-      },
-      {
-        label: 'Pengeluaran',
-        data: days.map((d) => d.expense),
-        backgroundColor: '#F87171',
-        borderColor: '#F87171',
-        borderRadius: 6
-      }
-    ]
-  };
-}
-
 /** Bar chart seri tunggal (pemasukan SAJA atau pengeluaran SAJA) — dipakai di halaman Pemasukan & Pengeluaran. */
 export function buildTypeBarData(
   daily: DailyPoint[],

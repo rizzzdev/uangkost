@@ -21,7 +21,10 @@
     formatRupiahInput,
     parseRupiahInput,
     formatRupiahDisplay,
-    formatBillingMonth,
+    monthLabelFromDate,
+    uniqueMonthLabels,
+    getTodayLocal,
+    toDateKeyLocal,
     assetUrl,
     billingStatusMeta,
     useIsMobile
@@ -37,13 +40,24 @@
   let showDetail = $state(false);
   let editTx = $state<Transaction | null>(null);
   let detailTx = $state<Transaction | null>(null);
-  let form = $state({ userId: null as string | null, amount: 0, description: '' });
-  let editForm = $state({ amount: 0, description: '', status: 'unpaid' as string });
   let page = $state(1);
   let filterMonth = $state('');
   const PER_PAGE = 10;
 
-  const today = new Date().toISOString().split('T')[0]!;
+  const today = getTodayLocal();
+
+  let form = $state({
+    userId: null as string | null,
+    amount: 0,
+    description: '',
+    transactionDate: today
+  });
+  let editForm = $state({
+    amount: 0,
+    description: '',
+    status: 'unpaid' as string,
+    transactionDate: today
+  });
 
   let chartData = $state<ChartData | null>(null);
   const isMobile = useIsMobile();
@@ -72,14 +86,10 @@
       }))
   );
 
-  const columns = ['Tanggal', 'Penghuni', 'Keterangan', 'Jumlah', 'Status'];
+  const columns = ['Tanggal', 'Penghuni', 'Deskripsi', 'Jumlah', 'Status'];
 
   // Data sudah diurutkan terbaru dulu (backend: createdAt desc)
-  const monthOptions = $derived(
-    [
-      ...new Set(finance.transactions.map((t) => t.billingMonth).filter((m): m is string => !!m))
-    ].sort((a, b) => b.localeCompare(a))
-  );
+  const monthOptions = $derived(uniqueMonthLabels(finance.transactions.map((t) => t.billingMonth)));
 
   const filtered = $derived(
     filterMonth
@@ -89,10 +99,22 @@
 
   const pagedRows = $derived(filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE));
 
-  // Card stats — total tagihan, uang terkumpul (totalPaid), dan sisa belum dibayar
-  const totalIncome = $derived(finance.transactions.reduce((s, t) => s + Number(t.amount), 0));
-  const collectedIncome = $derived(
-    finance.transactions.reduce((s, t) => s + Number(t.totalPaid), 0)
+  // Card stats — uang yang benar-benar masuk: lunas (penuh) + cicilan yang sudah dibayar (totalPaid)
+  const receivedIncome = $derived(
+    finance.transactions.reduce((s, t) => {
+      if (t.status === 'paid') return s + Number(t.amount);
+      if (t.status === 'partial') return s + Number(t.totalPaid);
+      return s;
+    }, 0)
+  );
+  const paidAmount = $derived(
+    finance.transactions.reduce((s, t) => (t.status === 'paid' ? s + Number(t.amount) : s), 0)
+  );
+  const partialReceived = $derived(
+    finance.transactions.reduce((s, t) => (t.status === 'partial' ? s + Number(t.totalPaid) : s), 0)
+  );
+  const unpaidTotal = $derived(
+    finance.transactions.reduce((s, t) => (t.status === 'unpaid' ? s + Number(t.amount) : s), 0)
   );
 
   // Jaga halaman tetap valid saat filter/data berubah
@@ -105,7 +127,7 @@
     const map: Record<string, string | { text: string; icon?: string }> = {
       Tanggal: row.transactionDate,
       Penghuni: row.user?.name ?? '-',
-      Keterangan: row.description || row.category,
+      Deskripsi: row.description || row.category,
       Jumlah: formatRupiahDisplay(row.amount),
       Status: {
         text: billingStatusMeta(row.status).label,
@@ -128,11 +150,11 @@
         amount: Number(form.amount),
         category: description || 'Pemasukan',
         description: description || undefined,
-        billingMonth: formatBillingMonth(),
-        transactionDate: today
+        billingMonth: monthLabelFromDate(form.transactionDate),
+        transactionDate: form.transactionDate
       });
       showCreate = false;
-      form = { userId: null, amount: 0, description: '' };
+      form = { userId: null, amount: 0, description: '', transactionDate: today };
       toast.success('Pemasukan berhasil dicatat');
     } catch {
       toast.error('Gagal mencatat pemasukan');
@@ -144,7 +166,8 @@
     editForm = {
       amount: Number(tx.amount),
       description: tx.description ?? tx.category,
-      status: tx.status
+      status: tx.status,
+      transactionDate: tx.transactionDate
     };
     showEdit = true;
   }
@@ -157,9 +180,9 @@
         amount: Number(editForm.amount),
         category: description || editTx.category,
         description: description || null,
-        billingMonth: editTx.billingMonth ?? formatBillingMonth(),
+        billingMonth: monthLabelFromDate(editForm.transactionDate),
         status: editForm.status as 'paid' | 'unpaid' | 'partial',
-        transactionDate: today
+        transactionDate: editForm.transactionDate
       });
       showEdit = false;
       editTx = null;
@@ -278,17 +301,15 @@
       </div>
       <div>
         <span class="label-md text-text-secondary">Total Pemasukan</span>
-        <p class="headline-md text-text-primary">{formatRupiahDisplay(totalIncome)}</p>
+        <p class="headline-md text-text-primary">{formatRupiahDisplay(receivedIncome)}</p>
       </div>
     </div>
     <p class="mt-2 label-md text-text-secondary">
-      Terkumpul: <span class="font-medium text-secondary"
-        >{formatRupiahDisplay(collectedIncome)}</span
-      >
+      Lunas: <span class="font-medium text-secondary">{formatRupiahDisplay(paidAmount)}</span>
+      · Dicicil:
+      <span class="font-medium text-tertiary">{formatRupiahDisplay(partialReceived)}</span>
       · Belum:
-      <span class="font-medium text-error"
-        >{formatRupiahDisplay(totalIncome - collectedIncome)}</span
-      >
+      <span class="font-medium text-error">{formatRupiahDisplay(unpaidTotal)}</span>
     </p>
   </div>
 
@@ -419,7 +440,7 @@
       </div>
       <div>
         <label for="billing-desc-create" class="mb-1.5 block label-md text-text-secondary"
-          >Keterangan</label
+          >Deskripsi</label
         >
         <input
           id="billing-desc-create"
@@ -431,15 +452,16 @@
         />
       </div>
       <div>
-        <label for="billing-month-create" class="mb-1.5 block label-md text-text-secondary"
-          >Bulan Pemasukan</label
+        <label for="billing-date-create" class="mb-1.5 block label-md text-text-secondary"
+          >Tanggal</label
         >
         <input
-          id="billing-month-create"
-          type="text"
-          class="input-field opacity-70"
-          value={formatBillingMonth()}
-          disabled
+          id="billing-date-create"
+          type="date"
+          class="input-field"
+          value={form.transactionDate}
+          oninput={(e) => (form.transactionDate = (e.target as HTMLInputElement).value)}
+          required
         />
       </div>
       <Button type="submit" icon="save" class="mt-2 w-full">Simpan Pemasukan</Button>
@@ -472,7 +494,7 @@
       </div>
       <div>
         <label for="billing-desc-edit" class="mb-1.5 block label-md text-text-secondary"
-          >Keterangan</label
+          >Deskripsi</label
         >
         <input
           id="billing-desc-edit"
@@ -483,15 +505,16 @@
         />
       </div>
       <div>
-        <label for="billing-month-edit" class="mb-1.5 block label-md text-text-secondary"
-          >Bulan Pemasukan</label
+        <label for="billing-date-edit" class="mb-1.5 block label-md text-text-secondary"
+          >Tanggal</label
         >
         <input
-          id="billing-month-edit"
-          type="text"
-          class="input-field opacity-70"
-          value={editTx?.billingMonth ?? formatBillingMonth()}
-          disabled
+          id="billing-date-edit"
+          type="date"
+          class="input-field"
+          value={editForm.transactionDate}
+          oninput={(e) => (editForm.transactionDate = (e.target as HTMLInputElement).value)}
+          required
         />
       </div>
       <div>
@@ -546,7 +569,12 @@
               >
                 <div>
                   <p class="body-md text-text-primary">{formatRupiahDisplay(inst.amount)}</p>
-                  {#if inst.note}<p class="label-md text-text-secondary">{inst.note}</p>{/if}
+                  <p class="label-md text-text-secondary">
+                    {toDateKeyLocal(new Date(inst.createdAt))}
+                  </p>
+                  {#if inst.description}
+                    <p class="label-md text-text-secondary">{inst.description}</p>
+                  {/if}
                 </div>
                 <div class="flex items-center gap-1.5">
                   {#if inst.isVerified}

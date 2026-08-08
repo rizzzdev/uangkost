@@ -149,8 +149,9 @@ export const getPublicTenant = asyncHandler(
 );
 
 export const getPublicDashboard = asyncHandler(
-  async (_req: Request, res: Response): Promise<void> => {
-    const data = await financeService.getPublicDashboard();
+  async (req: Request, res: Response): Promise<void> => {
+    const month = queryStr(req, "month") || undefined;
+    const data = await financeService.getPublicDashboard(month);
     ok(res, data);
   },
 );

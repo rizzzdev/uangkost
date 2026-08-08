@@ -23,11 +23,15 @@
     emptyMessage = 'No data',
     class: cls = ''
   }: Props = $props();
+
+  // Min-width agar kolom tidak berdempetan di layar sempit (scroll horizontal).
+  // ~130px per kolom + kolom aksi (bila ada) + buffer.
+  const tableMinWidth = $derived(Math.max(420, columns.length * 130 + (children ? 110 : 0)));
 </script>
 
 <div class="overflow-hidden card-surface {cls}">
   <div class="overflow-x-auto">
-    <table class="w-full">
+    <table class="w-full" style="min-width: {tableMinWidth}px">
       <thead>
         <tr class="border-b border-outline-variant">
           {#each columns as col (col)}

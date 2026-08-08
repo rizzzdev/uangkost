@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { signIn } from '$lib/auth-client.js';
   import { toast } from '$lib/ui/molecules/toast-store.svelte.js';
-  import { Button, Icon } from '$lib/ui/index.js';
+  import { BrandHeader, Button, Icon } from '$lib/ui/index.js';
 
   let username = $state('');
   let password = $state('');
@@ -40,15 +40,7 @@
   ></div>
 
   <div class="animate-in relative z-10 w-full max-w-md card-surface p-6 card-glow sm:p-8">
-    <div class="mb-8 text-center">
-      <div
-        class="mb-5 inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/20 to-primary/10"
-      >
-        <Icon name="account_balance_wallet" size="2rem" class="text-primary" />
-      </div>
-      <h1 class="headline-lg text-text-primary">uangkost</h1>
-      <p class="mt-2 label-md text-text-secondary">Sistem Manajemen Iuran Kost</p>
-    </div>
+    <BrandHeader size="lg" />
 
     <form onsubmit={handleSubmit} class="space-y-5">
       <div>

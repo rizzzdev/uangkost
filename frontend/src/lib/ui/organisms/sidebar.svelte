@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { resolve } from '$app/paths';
-  import { Icon } from '$lib/ui/index.js';
+  import { BrandHeader, Icon } from '$lib/ui/index.js';
 
   interface Props {
     open: boolean;
@@ -29,6 +29,11 @@
   ];
 
   const currentPath = $derived($page.url.pathname);
+
+  // Menu menyala juga untuk sub-route (mis. /tenants/:tenantId di bawah /tenants)
+  function isActive(href: AdminRoute): boolean {
+    return currentPath === href || currentPath.startsWith(`${href}/`);
+  }
 </script>
 
 <!-- Overlay (mobile) -->
@@ -43,15 +48,7 @@
     : '-translate-x-full'}"
 >
   <div class="mb-8 px-3">
-    <div class="flex items-center gap-2">
-      <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/20">
-        <Icon name="account_balance_wallet" size="1.25rem" class="text-primary" />
-      </div>
-      <div>
-        <span class="headline-sm text-primary">uangkost</span>
-        <p class="label-md text-text-secondary">Manajemen</p>
-      </div>
-    </div>
+    <BrandHeader subtitle="Manajemen" />
   </div>
 
   <nav class="flex-1 space-y-1 overflow-hidden">
@@ -59,8 +56,9 @@
       <a
         href={resolve(item.href)}
         onclick={onclose}
-        class="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 {currentPath ===
-        item.href
+        class="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 {isActive(
+          item.href
+        )
           ? 'bg-primary/15 text-primary shadow-sm shadow-primary/10'
           : 'text-text-secondary hover:bg-surface-container-high hover:text-text-primary'}"
       >

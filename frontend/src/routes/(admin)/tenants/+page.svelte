@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { getTenantFeature } from '$lib/features/index.js';
   import { Button, DataTable, Modal, Icon, ConfirmDialog, askConfirm } from '$lib/ui/index.js';
   import { toast } from '$lib/ui/molecules/toast-store.svelte.js';
@@ -136,6 +138,14 @@
     <DataTable {columns} rows={tenantsFeature.tenants} {getCell}>
       {#snippet children({ row }: { row: Tenant })}
         <div class="flex items-center justify-end gap-1.5">
+          <Button
+            variant="secondary"
+            iconOnly
+            icon="account_balance_wallet"
+            size="sm"
+            title="Buka portal admin penghuni"
+            onclick={() => goto(resolve(`/tenants/${row.id}`))}
+          />
           <Button
             variant="secondary"
             iconOnly

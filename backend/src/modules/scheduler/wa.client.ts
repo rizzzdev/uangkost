@@ -25,10 +25,6 @@ export function getWaState(): WaState {
   return { ...waState };
 }
 
-export function getWASocket(): WaState | null {
-  return getWaState().connected ? waState : null;
-}
-
 /**
  * Send WhatsApp message via Fonnte REST API.
  * Returns true on success, throws on failure.
@@ -75,16 +71,4 @@ export async function sendWaMessage(phone: string, message: string, linkUrl?: st
   if (!json.status) {
     throw new Error(`Fonnte gagal: ${json.detail ?? resBody}`);
   }
-}
-
-// Stub functions — no longer needed with Fonnte
-export async function connectWa(): Promise<void> {
-  if (!env.FONNTE_TOKEN) {
-    throw new Error("FONNTE_TOKEN not configured in .env");
-  }
-  waState.connected = true;
-}
-
-export async function disconnectWa(): Promise<void> {
-  // Fonnte doesn't need disconnection
 }

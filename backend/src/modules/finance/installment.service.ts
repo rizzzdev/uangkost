@@ -24,7 +24,7 @@ function toResponse(i: {
   isVerified: boolean;
   verifiedAt: Date | null;
   rejectedAt: Date | null;
-  note: string | null;
+  description: string | null;
   createdAt: Date;
 }): InstallmentResponse {
   return {
@@ -35,7 +35,7 @@ function toResponse(i: {
     isVerified: i.isVerified,
     verifiedAt: i.verifiedAt?.toISOString() ?? null,
     rejectedAt: i.rejectedAt?.toISOString() ?? null,
-    note: i.note,
+    description: i.description,
     createdAt: i.createdAt,
   };
 }
@@ -43,12 +43,14 @@ function toResponse(i: {
 /**
  * Tenant uploads a cicilan payment for a transaction.
  * Validates: no overpay, transaction exists and is unpaid/partial.
- * totalPaid hanya bertambah setelah diverifikasi admin.
+ * totalPaid hanya bertambah setelah diverifikasi admin, KECUALI autoVerify=true
+ * (admin menginput langsung → langsung terverifikasi & masuk totalPaid).
  */
 export async function createInstallment(
   transactionId: string,
   input: CreateInstallmentInput,
   proofFilePath?: string,
+  autoVerify = false,
 ): Promise<InstallmentResponse> {
   const tx = await prisma.transaction.findFirst({
     where: { id: transactionId, ...NOT_DELETED },
@@ -97,10 +99,21 @@ export async function createInstallment(
     data: {
       transactionId,
       amount: input.amount,
-      note: input.note ?? null,
+      description: input.description ?? null,
       paymentProofUrl: proofFilePath ?? null,
+      ...(autoVerify ? { isVerified: true, verifiedAt: new Date() } : {}),
     },
   });
+
+  // Admin menginput langsung: cicilan langsung terverifikasi → tambah ke totalPaid & status
+  if (autoVerify) {
+    const newTotalPaid = Number(tx.totalPaid) + Number(installment.amount);
+    const newStatus = computeStatus(Number(tx.amount), newTotalPaid);
+    await prisma.transaction.update({
+      where: { id: tx.id },
+      data: { totalPaid: newTotalPaid, status: newStatus },
+    });
+  }
 
   await invalidateFinanceCache(); // SEBELUM respons — refetch client selalu dapat data segar
   return toResponse(installment);
@@ -108,13 +121,15 @@ export async function createInstallment(
 
 /**
  * Admin creates a cicilan directly (manual record) for a transaction.
+ * autoVerify=true → cicilan langsung terverifikasi (dipakai halaman portal admin).
  */
 export async function createInstallmentByAdmin(
   transactionId: string,
   input: CreateInstallmentInput,
   proofFilePath?: string,
+  autoVerify = false,
 ): Promise<InstallmentResponse> {
-  return createInstallment(transactionId, input, proofFilePath);
+  return createInstallment(transactionId, input, proofFilePath, autoVerify);
 }
 
 /**
@@ -165,7 +180,7 @@ export async function updateInstallment(
     where: { id },
     data: {
       ...(input.amount !== undefined && { amount: newAmount }),
-      ...(input.note !== undefined && { note: input.note }),
+      ...(input.description !== undefined && { description: input.description }),
     },
   });
 

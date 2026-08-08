@@ -48,7 +48,7 @@ function toTransactionResponse(tx: TransactionWithRelations): TransactionRespons
       isVerified: i.isVerified,
       verifiedAt: i.verifiedAt?.toISOString() ?? null,
       rejectedAt: i.rejectedAt?.toISOString() ?? null,
-      note: i.note,
+      description: i.description,
       createdAt: i.createdAt,
     })),
   };
@@ -184,12 +184,10 @@ export async function getTransactionById(
  * Dipakai juga oleh worker createMonthlyBills.
  */
 export async function invalidateFinanceCache(): Promise<void> {
-  await cacheInvalidate(
-    CACHE_KEYS.financeSummary,
-    CACHE_KEYS.financeChart,
-    CACHE_KEYS.publicDashboard,
-  );
-  // Cache per-penghuni & per-filter: hapus semua karena tidak tahu siapa yang berubah
+  await cacheInvalidate(CACHE_KEYS.financeSummary, CACHE_KEYS.financeChart);
+  // Cache per-penghuni, per-filter, per-bulan laporan publik: hapus semua
+  // karena tidak tahu siapa/bulan mana yang berubah
+  await cacheInvalidatePattern("finance:public-dashboard:*");
   await cacheInvalidatePattern("finance:tenant-cashflow:*");
   await cacheInvalidatePattern("finance:tenant-transactions:*");
   await cacheInvalidatePattern("finance:transactions:*");
@@ -361,11 +359,16 @@ export async function getFinanceSummary(): Promise<FinanceSummary> {
 }
 
 async function computeFinanceSummary(): Promise<FinanceSummary> {
-  const [incomeResult, expenseResult, paidCount, unpaidCount] =
+  const [paidIncome, partialIncome, expenseResult, paidCount, unpaidCount] =
     await Promise.all([
       prisma.transaction.aggregate({
         _sum: { amount: true },
         where: { type: "income", status: "paid", ...NOT_DELETED },
+      }),
+      // Cicilan (partial): hanya nominal yang BENAR-BENAR sudah dibayar (totalPaid)
+      prisma.transaction.aggregate({
+        _sum: { totalPaid: true },
+        where: { type: "income", status: "partial", ...NOT_DELETED },
       }),
       prisma.transaction.aggregate({
         _sum: { amount: true },
@@ -375,7 +378,9 @@ async function computeFinanceSummary(): Promise<FinanceSummary> {
       prisma.transaction.count({ where: { status: "unpaid", ...NOT_DELETED } }),
     ]);
 
-  const totalIncome = Number(incomeResult._sum.amount ?? 0);
+  // Pemasukan = pembayaran lunas (penuh) + cicilan yang sudah dibayar (totalPaid)
+  const totalIncome =
+    Number(paidIncome._sum.amount ?? 0) + Number(partialIncome._sum.totalPaid ?? 0);
   const totalExpense = Number(expenseResult._sum.amount ?? 0);
 
   return {
@@ -436,39 +441,86 @@ export interface PublicDashboardMonthly {
   expense: number;
   paidCount: number;
   unpaidCount: number;
+  /** Saldo sebelum periode (pemasukan − pengeluaran periode-periode sebelumnya). */
+  openingBalance: number;
+  /** Saldo akhir periode = openingBalance + income − expense. */
+  closingBalance: number;
+}
+
+export interface PeriodChartPoint {
+  /** Label sumbu-X: "08/08" (per hari) atau "08/26" (per bulan saat "all"). */
+  label: string;
+  income: number;
+  expense: number;
 }
 
 export interface PublicDashboardResponse {
   summary: FinanceSummary;
   monthly: PublicDashboardMonthly;
   chartData: ChartDataResponse;
+  /** Bar chart periode terpilih: per hari untuk bulan tertentu, per bulan untuk "all". */
+  periodChart: PeriodChartPoint[];
   recentIncome: TenantExpenseResponse[];
   recentExpenses: TenantExpenseResponse[];
   tenants: PublicDashboardTenantStatus[];
+  /** Bulan yang punya data (label "Agustus 2026"), terbaru dulu — untuk filter. */
+  availableMonths: string[];
 }
 
-export async function getPublicDashboard(): Promise<PublicDashboardResponse> {
-  return cached(CACHE_KEYS.publicDashboard, () => buildPublicDashboard());
+export async function getPublicDashboard(
+  monthKey?: string,
+): Promise<PublicDashboardResponse> {
+  const key = monthKey?.trim() ?? "";
+  return cached(CACHE_KEYS.publicDashboard(key), () => buildPublicDashboard(key));
 }
 
-async function buildPublicDashboard(): Promise<PublicDashboardResponse> {
+/** "2026-08" → range { gte, lt } bulan tersebut; null bila key tidak valid. */
+function resolveMonthRange(monthKey: string): { gte: Date; lt: Date } | null {
+  if (/^\d{4}-\d{2}$/.test(monthKey)) {
+    const py = Number(monthKey.slice(0, 4));
+    const pm = Number(monthKey.slice(5, 7)) - 1;
+    if (pm >= 0 && pm <= 11 && py >= 2000 && py <= 2100) {
+      return { gte: new Date(py, pm, 1), lt: new Date(py, pm + 1, 1) };
+    }
+  }
+  return null;
+}
+
+async function buildPublicDashboard(monthKey: string): Promise<PublicDashboardResponse> {
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const monthRange = { gte: startOfMonth, lt: startOfNextMonth };
+  // "" (default) → bulan berjalan; "all" → Semua Bulan (tanpa filter tanggal);
+  // "YYYY-MM" → bulan tersebut; lainnya → fallback bulan berjalan
+  let rangeWhere: Prisma.TransactionWhereInput;
+  let periodStart: Date | null = null;
+  const range = resolveMonthRange(monthKey);
+  if (range) {
+    rangeWhere = { transactionDate: range };
+    periodStart = range.gte;
+  } else if (monthKey === "all") {
+    rangeWhere = {};
+  } else {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    periodStart = startOfMonth;
+    rangeWhere = {
+      transactionDate: {
+        gte: startOfMonth,
+        lt: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+      },
+    };
+  }
 
-  const [summary, chartData, recentIncome, recentExpenses, tenants, monthlyCounts] =
+  const [summary, chartData, recentIncome, recentExpenses, tenants, monthlyCounts, monthlyAgg, beforeAgg] =
     await Promise.all([
       getFinanceSummary(),
       getChartData(),
-      // Laporan publik menampilkan SEMUA data bulan berjalan (bukan hanya 5 terbaru)
+      // Laporan publik menampilkan SEMUA data periode terpilih (bukan hanya 5 terbaru)
       prisma.transaction.findMany({
-        where: { type: "income", transactionDate: monthRange, ...NOT_DELETED },
+        where: { type: "income", ...rangeWhere, ...NOT_DELETED },
         include: DEFAULT_TRANSACTION_INCLUDE,
         orderBy: [{ createdAt: "desc" }, { transactionDate: "desc" }],
       }),
       prisma.transaction.findMany({
-        where: { type: "expense", transactionDate: monthRange, ...NOT_DELETED },
+        where: { type: "expense", ...rangeWhere, ...NOT_DELETED },
         include: DEFAULT_TRANSACTION_INCLUDE,
         orderBy: [{ createdAt: "desc" }, { transactionDate: "desc" }],
       }),
@@ -479,24 +531,88 @@ async function buildPublicDashboard(): Promise<PublicDashboardResponse> {
       }),
       Promise.all([
         prisma.transaction.count({
-          where: { type: "income", status: "paid", transactionDate: monthRange, ...NOT_DELETED },
+          where: { type: "income", status: "paid", ...rangeWhere, ...NOT_DELETED },
         }),
         prisma.transaction.count({
-          where: { type: "income", status: "unpaid", transactionDate: monthRange, ...NOT_DELETED },
+          where: { type: "income", status: "unpaid", ...rangeWhere, ...NOT_DELETED },
         }),
       ]),
+      Promise.all([
+        prisma.transaction.aggregate({
+          _sum: { amount: true },
+          where: { type: "income", status: "paid", ...rangeWhere, ...NOT_DELETED },
+        }),
+        prisma.transaction.aggregate({
+          _sum: { totalPaid: true },
+          where: { type: "income", status: "partial", ...rangeWhere, ...NOT_DELETED },
+        }),
+        prisma.transaction.aggregate({
+          _sum: { amount: true },
+          where: { type: "expense", ...rangeWhere, ...NOT_DELETED },
+        }),
+      ]),
+      // Saldo awal periode: pemasukan (lunas + cicilan terbayar) − pengeluaran SEBELUM periode.
+      // Untuk "all" (Semua Bulan) tidak ada periode sebelumnya → saldo awal 0.
+      periodStart
+        ? Promise.all([
+            prisma.transaction.aggregate({
+              _sum: { amount: true },
+              where: {
+                type: "income",
+                status: "paid",
+                transactionDate: { lt: periodStart },
+                ...NOT_DELETED,
+              },
+            }),
+            prisma.transaction.aggregate({
+              _sum: { totalPaid: true },
+              where: {
+                type: "income",
+                status: "partial",
+                transactionDate: { lt: periodStart },
+                ...NOT_DELETED,
+              },
+            }),
+            prisma.transaction.aggregate({
+              _sum: { amount: true },
+              where: {
+                type: "expense",
+                transactionDate: { lt: periodStart },
+                ...NOT_DELETED,
+              },
+            }),
+          ])
+        : Promise.resolve(null),
     ]);
 
-  // Kumpulkan status + total/dibayar tagihan penghuni untuk bulan berjalan saja
+  // Kumpulkan status + total/dibayar tagihan penghuni untuk periode terpilih
   const bills = await prisma.transaction.findMany({
     where: {
       type: "income",
-      transactionDate: monthRange,
+      ...rangeWhere,
       ...NOT_DELETED,
       userId: { in: tenants.map((t) => t.id) },
     },
     select: { userId: true, status: true, amount: true, totalPaid: true },
   });
+
+  // Bulan-bulan yang punya data (label "Agustus 2026"), terbaru dulu — untuk filter
+  const distinctDates = await prisma.transaction.findMany({
+    where: { ...NOT_DELETED },
+    select: { transactionDate: true },
+    distinct: ["transactionDate"],
+  });
+  const monthSet = new Set<string>();
+  for (const d of distinctDates) {
+    const dt = d.transactionDate;
+    monthSet.add(`${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`);
+  }
+  const availableMonths = [...monthSet]
+    .sort((a, b) => b.localeCompare(a))
+    .map((k) => {
+      const [y, m] = k.split("-");
+      return `${MONTHS_ID[Number(m) - 1]} ${y}`;
+    });
 
   // Status tenant berbasis JUMLAH YANG SUDAH DIBAYAR (konsisten dengan kolom total/paid):
   //  - belum dibayar sama sekali → unpaid
@@ -519,15 +635,28 @@ async function buildPublicDashboard(): Promise<PublicDashboardResponse> {
     return "unpaid";
   }
 
+  // Pemasukan = lunas (penuh) + cicilan yang sudah dibayar (totalPaid)
+  const income =
+    Number(monthlyAgg[0]._sum.amount ?? 0) + Number(monthlyAgg[1]._sum.totalPaid ?? 0);
+  const expense = Number(monthlyAgg[2]._sum.amount ?? 0);
+  const openingBalance = beforeAgg
+    ? Number(beforeAgg[0]._sum.amount ?? 0) +
+      Number(beforeAgg[1]._sum.totalPaid ?? 0) -
+      Number(beforeAgg[2]._sum.amount ?? 0)
+    : 0;
+
   return {
     summary,
     monthly: {
-      income: chartData.monthlyIncome,
-      expense: chartData.monthlyExpense,
+      income,
+      expense,
       paidCount: monthlyCounts[0],
       unpaidCount: monthlyCounts[1],
+      openingBalance,
+      closingBalance: openingBalance + income - expense,
     },
     chartData,
+    periodChart: buildPeriodChart(monthKey, recentIncome, recentExpenses),
     recentIncome: recentIncome.map((tx) => toTenantExpense(tx, { includeProof: true })),
     recentExpenses: recentExpenses.map((tx) => toTenantExpense(tx, { includeProof: true })),
     tenants: tenants.map((t) => ({
@@ -538,7 +667,98 @@ async function buildPublicDashboard(): Promise<PublicDashboardResponse> {
       total: totalByTenant.get(t.id) ?? 0,
       paid: paidByTenant.get(t.id) ?? 0,
     })),
+    availableMonths,
   };
+}
+
+/**
+ * Bar chart periode terpilih (laporan publik & reports).
+ * Dibangun dari transaksi yang SUDAH di-fetch (tanpa query tambahan):
+ * - bulan tertentu (termasuk default bulan berjalan) → agregasi per hari,
+ *   seluruh hari bulan diisi 0 agar bar kontinu;
+ * - "all" (Semua Bulan) → agregasi per bulan.
+ * Pemasukan = pembayaran lunas (penuh) + cicilan yang sudah dibayar (totalPaid),
+ * konsisten dengan agregasi lain.
+ */
+function buildPeriodChart(
+  monthKey: string,
+  incomes: TransactionWithRelations[],
+  expenses: TransactionWithRelations[],
+): PeriodChartPoint[] {
+  let start: Date | null = null;
+  const range = resolveMonthRange(monthKey);
+  if (range) {
+    start = range.gte;
+  } else if (monthKey !== "all") {
+    // Default ("") → bulan berjalan
+    const now = new Date();
+    start = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+
+  // Buka cache inline di dalam editor loop closure
+  const applyContribution = (
+    entry: { income: number; expense: number },
+    tx: TransactionWithRelations,
+    isIncome: boolean,
+  ): void => {
+    if (isIncome) {
+      // Pemasukan = lunas (penuh) + cicilan yang sudah dibayar (totalPaid)
+      if (tx.status === "paid") entry.income += Number(tx.amount);
+      else if (tx.status === "partial") entry.income += Number(tx.totalPaid);
+    } else {
+      entry.expense += Number(tx.amount);
+    }
+  };
+
+  if (start) {
+    const y = start.getFullYear();
+    const m = start.getMonth();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const dayMap = new Map<string, { income: number; expense: number }>();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      dayMap.set(key, { income: 0, expense: 0 });
+    }
+    for (const tx of incomes) {
+      const entry = dayMap.get(tx.transactionDate.toISOString().split("T")[0]!);
+      if (entry) applyContribution(entry, tx, true);
+    }
+    for (const tx of expenses) {
+      const entry = dayMap.get(tx.transactionDate.toISOString().split("T")[0]!);
+      if (entry) applyContribution(entry, tx, false);
+    }
+    return [...dayMap.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, v]) => ({
+        label: `${date.slice(8, 10)}/${date.slice(5, 7)}`,
+        income: v.income,
+        expense: v.expense,
+      }));
+  }
+
+  // "all" → agregasi per bulan (label "08/26" = MM/YY)
+  const monthMap = new Map<string, { income: number; expense: number }>();
+  const aggregateMonth = (
+    txs: TransactionWithRelations[],
+    isIncome: boolean,
+  ): void => {
+    for (const tx of txs) {
+      const d = tx.transactionDate;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const entry = monthMap.get(key) ?? { income: 0, expense: 0 };
+      applyContribution(entry, tx, isIncome);
+      monthMap.set(key, entry);
+    }
+  };
+  aggregateMonth(incomes, true);
+  aggregateMonth(expenses, false);
+  return [...monthMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, v]) => ({
+      label: `${key.slice(5, 7)}/${key.slice(2, 4)}`,
+      income: v.income,
+      expense: v.expense,
+    }));
 }
 
 // Tenant-facing expense view: tanpa bukti pembayaran kecuali untuk laporan publik (includeProof)
@@ -610,8 +830,8 @@ async function getTenantChartData(tenantId: string): Promise<ChartDataResponse> 
 
 /**
  * Laporan bulanan untuk export PDF (admin).
- * - Saldo awal = pemasukan lunas + pengeluaran SEBELUM bulan terpilih
- * - Pemasukan bulan ini = pemasukan berstatus paid (uang yang benar-benar diterima)
+ * - Saldo awal = pemasukan (lunas + cicilan terbayar) − pengeluaran SEBELUM bulan terpilih
+ * - Pemasukan bulan ini = pembayaran lunas (penuh) + cicilan yang sudah dibayar (totalPaid)
  * - Pengeluaran bulan ini = semua pengeluaran
  * - Sisa saldo akhir = saldo awal + pemasukan − pengeluaran
  */
@@ -645,11 +865,23 @@ async function buildMonthlyReport(
   end: Date,
   monthKey: string,
 ): Promise<MonthlyReportResponse> {
-  const [beforeIncome, beforeExpense, incomeAgg, expenseAgg, txs] =
+  const [
+    beforePaidIncome,
+    beforePartialIncome,
+    beforeExpense,
+    paidIncome,
+    partialIncome,
+    expenseAgg,
+    txs,
+  ] =
     await Promise.all([
       prisma.transaction.aggregate({
         _sum: { amount: true },
         where: { type: "income", status: "paid", transactionDate: { lt: start }, ...NOT_DELETED },
+      }),
+      prisma.transaction.aggregate({
+        _sum: { totalPaid: true },
+        where: { type: "income", status: "partial", transactionDate: { lt: start }, ...NOT_DELETED },
       }),
       prisma.transaction.aggregate({
         _sum: { amount: true },
@@ -658,6 +890,10 @@ async function buildMonthlyReport(
       prisma.transaction.aggregate({
         _sum: { amount: true },
         where: { type: "income", status: "paid", transactionDate: { gte: start, lt: end }, ...NOT_DELETED },
+      }),
+      prisma.transaction.aggregate({
+        _sum: { totalPaid: true },
+        where: { type: "income", status: "partial", transactionDate: { gte: start, lt: end }, ...NOT_DELETED },
       }),
       prisma.transaction.aggregate({
         _sum: { amount: true },
@@ -671,8 +907,11 @@ async function buildMonthlyReport(
     ]);
 
   const openingBalance =
-    Number(beforeIncome._sum.amount ?? 0) - Number(beforeExpense._sum.amount ?? 0);
-  const income = Number(incomeAgg._sum.amount ?? 0);
+    Number(beforePaidIncome._sum.amount ?? 0) +
+    Number(beforePartialIncome._sum.totalPaid ?? 0) -
+    Number(beforeExpense._sum.amount ?? 0);
+  const income =
+    Number(paidIncome._sum.amount ?? 0) + Number(partialIncome._sum.totalPaid ?? 0);
   const expense = Number(expenseAgg._sum.amount ?? 0);
 
   return {
@@ -682,9 +921,11 @@ async function buildMonthlyReport(
     income,
     expense,
     closingBalance: openingBalance + income - expense,
-    // incomeCount hanya pemasukan lunas (konsisten dengan angka income),
+    // incomeCount = pemasukan lunas + dicicil (konsisten dengan angka income),
     // expenseCount semua pengeluaran (pengeluaran selalu "realisasi")
-    incomeCount: txs.filter((t) => t.type === "income" && t.status === "paid").length,
+    incomeCount: txs.filter(
+      (t) => t.type === "income" && (t.status === "paid" || t.status === "partial"),
+    ).length,
     expenseCount: txs.filter((t) => t.type === "expense").length,
     items: txs.map((tx) => ({
       id: tx.id,
@@ -718,7 +959,7 @@ async function buildChartData(where: Prisma.TransactionWhereInput): Promise<Char
         ...where,
         transactionDate: { gte: sevenDaysAgo, lte: now },
       },
-      select: { type: true, amount: true, status: true, transactionDate: true },
+      select: { type: true, amount: true, status: true, totalPaid: true, transactionDate: true },
       orderBy: { transactionDate: "asc" },
     }),
     Promise.all([
@@ -728,6 +969,15 @@ async function buildChartData(where: Prisma.TransactionWhereInput): Promise<Char
           ...where,
           type: "income",
           status: "paid",
+          transactionDate: { gte: startOfMonth, lte: now },
+        },
+      }),
+      prisma.transaction.aggregate({
+        _sum: { totalPaid: true },
+        where: {
+          ...where,
+          type: "income",
+          status: "partial",
           transactionDate: { gte: startOfMonth, lte: now },
         },
       }),
@@ -756,10 +1006,11 @@ async function buildChartData(where: Prisma.TransactionWhereInput): Promise<Char
     const entry = dayMap.get(key);
     if (entry) {
       const amt = Number(tx.amount);
-      // Pemasukan bar chart hanya menghitung tagihan yang sudah dibayar lunas &
-      // disetujui admin (status "paid") — konsisten dengan agregasi bulanan.
+      // Pemasukan = pembayaran lunas (penuh) + cicilan yang sudah dibayar (totalPaid);
+      // tagihan belum dibayar tidak dihitung. Konsisten dengan agregasi bulanan.
       if (tx.type === "income") {
         if (tx.status === "paid") entry.income += amt;
+        else if (tx.status === "partial") entry.income += Number(tx.totalPaid);
       } else {
         entry.expense += amt;
       }
@@ -773,7 +1024,8 @@ async function buildChartData(where: Prisma.TransactionWhereInput): Promise<Char
 
   return {
     daily,
-    monthlyIncome: Number(monthlyAgg[0]._sum.amount ?? 0),
-    monthlyExpense: Number(monthlyAgg[1]._sum.amount ?? 0),
+    monthlyIncome:
+      Number(monthlyAgg[0]._sum.amount ?? 0) + Number(monthlyAgg[1]._sum.totalPaid ?? 0),
+    monthlyExpense: Number(monthlyAgg[2]._sum.amount ?? 0),
   };
 }

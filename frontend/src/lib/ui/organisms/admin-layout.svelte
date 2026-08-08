@@ -2,7 +2,7 @@
   import type { Snippet } from 'svelte';
   import { signOut } from '$lib/auth-client.js';
   import { toast } from '$lib/ui/molecules/toast-store.svelte.js';
-  import { Button, Footer, Icon } from '$lib/ui/index.js';
+  import { BrandHeader, Button, Footer, Icon } from '$lib/ui/index.js';
   import Sidebar from './sidebar.svelte';
 
   interface Props {
@@ -27,7 +27,7 @@
     <header
       class="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-outline-variant bg-surface-dim/80 px-4 backdrop-blur-sm lg:justify-end lg:px-6"
     >
-      <span class="headline-sm text-primary lg:hidden">uangkost</span>
+      <BrandHeader size="text" class="lg:hidden" />
       <div class="flex items-center gap-2">
         <div class="hidden items-center gap-2 sm:flex">
           <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20">

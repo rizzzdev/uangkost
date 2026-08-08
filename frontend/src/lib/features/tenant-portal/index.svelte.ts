@@ -66,12 +66,12 @@ async function uploadProof(txId: string, file: File): Promise<void> {
 async function uploadInstallment(
   transactionId: string,
   amount: number,
-  note: string,
+  description: string,
   file: File
 ): Promise<void> {
   const formData = new FormData();
   formData.append('amount', String(amount));
-  formData.append('note', note);
+  formData.append('description', description);
   formData.append('paymentProof', file);
   await api.upload<Installment>(`/finance/${transactionId}/installments`, formData);
   await load();

@@ -20,7 +20,15 @@ export const getAll = asyncHandler(async (_req: Request, res: Response) => {
 export const createByAdmin = asyncHandler(async (req: Request, res: Response) => {
   const input = validate(createInstallmentByAdminSchema, req.body);
   const proofFile = req.file?.filename ? `/uploads/${req.file.filename}` : undefined;
-  const data = await svc.createInstallmentByAdmin(input.transactionId, input, proofFile);
+  // autoVerify (string "true" dari FormData atau boolean dari JSON) → langsung terverifikasi
+  const body = req.body as Record<string, unknown>;
+  const autoVerify = body.autoVerify === true || body.autoVerify === "true";
+  const data = await svc.createInstallmentByAdmin(
+    input.transactionId,
+    input,
+    proofFile,
+    autoVerify,
+  );
   created(res, data);
 });
 

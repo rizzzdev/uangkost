@@ -5,28 +5,26 @@
 #   - Traefik berjalan di network external "proxy" (entrypoint
 #     `websecure` + certresolver `myresolver` harus sudah ada)
 #   - Network "backend" sudah dibuat:  docker network create backend
-#   - Salin .env.example (root) ke .env lalu sesuaikan nilainya
-#   - Pastikan backend/.env berisi konfigurasi aplikasi (FONNTE_TOKEN, dll)
+#   - Salin backend/.env.example ke backend/.env lalu sesuaikan
+#     (termasuk DATABASE_URL & REDIS_URL host nama service postgres/redis)
 #
 # Cara pakai (build satu-satu agar RAM tidak penuh):
-#   docker compose -f compose.backend.yml build
-#   docker compose -f compose.backend.yml up -d
+#   docker compose -f compose-backend.yaml build
+#   docker compose -f compose-backend.yaml up -d
+#
+# Domain Traefik bisa diubah via env var shell saat menjalankan compose:
+#   DOMAIN_NAME=example.com docker compose -f compose-backend.yaml up -d
 # ============================================================
 
 services:
   backend:
     build: ./backend
     restart: unless-stopped
+    # Satu sumber konfigurasi: backend/.env (aplikasi + DB/Redis + cookie domain).
+    # NODE_ENV di-paksa production khusus container (mengabaikan value dev di .env).
     env_file: ./backend/.env
     environment:
-      # Koneksi DB/Redis yang dijangkau dari dalam container
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
       NODE_ENV: production
-      # CORS & link WA reminder (portal + laporan)
-      PUBLIC_URL: ${PUBLIC_URL:-https://uangkost.${DOMAIN_NAME}}
-      # Cookie bersama lintas subdomain (uangkost.<domain> & api.uangkost.<domain>)
-      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
     volumes:
       - uploads_data:/app/uploads
     networks:
@@ -34,7 +32,7 @@ services:
       - backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.uangkost-api.rule=Host(`api.uangkost.${DOMAIN_NAME}`)"
+      - "traefik.http.routers.uangkost-api.rule=Host(`api.uangkost.${DOMAIN_NAME:-example.com}`)"
       - "traefik.http.routers.uangkost-api.entrypoints=websecure"
       - "traefik.http.routers.uangkost-api.tls.certresolver=myresolver"
       - "traefik.http.services.uangkost-api.loadbalancer.server.port=4000"

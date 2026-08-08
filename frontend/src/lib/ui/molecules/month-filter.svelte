@@ -6,10 +6,19 @@
     value: string;
     onchange: (value: string) => void;
     label?: string;
+    /** true = tombol memanjang penuh (mobile); default = auto dengan min-width. */
+    fullWidth?: boolean;
     class?: string;
   }
 
-  let { months, value, onchange, label = 'Filter Bulan', class: cls = '' }: Props = $props();
+  let {
+    months,
+    value,
+    onchange,
+    label = 'Filter Bulan',
+    fullWidth = false,
+    class: cls = ''
+  }: Props = $props();
 
   let open = $state(false);
   let rootEl = $state<HTMLDivElement>();
@@ -25,7 +34,9 @@
   <button
     type="button"
     onclick={() => (open = !open)}
-    class="flex input-field w-auto! min-w-44 cursor-pointer items-center justify-between gap-2 text-left"
+    class="flex input-field {fullWidth
+      ? 'w-full sm:min-w-44'
+      : 'w-auto! min-w-44'} cursor-pointer items-center justify-between gap-2 text-left"
     aria-haspopup="listbox"
     aria-expanded={open}
   >

@@ -27,6 +27,61 @@ export function monthLabelFromDate(dateStr: string): string {
   return `${MONTHS_ID[Number(m) - 1] ?? m} ${y}`;
 }
 
+/** "2026-08" → "Agustus 2026"; fallback ke input bila tidak valid. */
+export function monthLabelFromKey(monthKey: string): string {
+  const [y, m] = monthKey.split('-');
+  if (!y || !m) return monthKey;
+  return `${MONTHS_ID[Number(m) - 1] ?? m} ${y}`;
+}
+
+/** "Agustus 2026" → "2026-08"; fallback ke input bila tidak dikenal. */
+export function monthKeyFromLabel(label: string): string {
+  const match = /^([A-Za-z]+) (\d{4})$/.exec(label.trim());
+  if (!match) return label;
+  const idx = MONTHS_ID.findIndex((mn) => mn.toLowerCase() === match[1]!.toLowerCase());
+  if (idx === -1) return label;
+  return `${match[2]}-${String(idx + 1).padStart(2, '0')}`;
+}
+
+/** Key bulan berjalan, mis. "2026-08". */
+export function currentMonthKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Daftar label bulan-tahun UNIK dari koleksi label (mis. "Agustus 2026"),
+ * diurutkan terbaru dulu. Dipakai opsi filter bulan di halaman pemasukan,
+ * pengeluaran, cicilan, portal tenant, dan portal admin.
+ */
+export function uniqueMonthLabels(labels: Array<string | null | undefined>): string[] {
+  return [...new Set(labels.filter((l): l is string => !!l))].sort((a, b) => {
+    const ka = monthKeyFromLabel(a);
+    const kb = monthKeyFromLabel(b);
+    return kb.localeCompare(ka);
+  });
+}
+
+/**
+ * Tanggal hari ini dalam zona waktu LOKAL sebagai "YYYY-MM-DD"
+ * (aman untuk input type=date — toISOString() berbasis UTC bisa off-by-one).
+ */
+export function getTodayLocal(): string {
+  return toDateKeyLocal(new Date());
+}
+
+/**
+ * Format Date ke "YYYY-MM-DD" dalam zona waktu LOKAL.
+ * Dipakai saat fallback ke createdAt (datetime) agar tidak bergeser sehari
+ * akibat perbedaan UTC vs WIB.
+ */
+export function toDateKeyLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /**
  * Format angka menjadi "1.500.000" (Rupiah tanpa simbol & koma desimal).
  * Dipakai untuk input jumlah uang agar terbaca ribuan.

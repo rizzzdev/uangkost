@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
-  import { getDashboardFeature, getFinanceFeature } from '$lib/features/index.js';
+  import { getFinanceFeature } from '$lib/features/index.js';
   import {
     Button,
     Card,
@@ -10,7 +10,6 @@
     Badge,
     MonthFilter,
     PaymentStatusTable,
-    buildCashflowBarData,
     buildMonthlyDoughnutData
   } from '$lib/ui/index.js';
   import { toast } from '$lib/ui/molecules/toast-store.svelte.js';
@@ -18,45 +17,46 @@
     formatRupiahDisplay,
     formatBillingMonth,
     billingStatusMeta,
-    useIsMobile
+    currentMonthKey,
+    monthLabelFromKey,
+    monthKeyFromLabel
   } from '$lib/core/index.js';
-  import type {
-    ChartData,
-    PublicDashboardTenantStatus
-  } from '$lib/features/finance/index.svelte.js';
-  import type { Transaction } from '$lib/features/finance/types.js';
+  import type { PublicDashboard } from '$lib/features/finance/index.svelte.js';
 
-  const dash = getDashboardFeature();
   const fin = getFinanceFeature();
 
-  let chartData = $state<ChartData | null>(null);
-  let recentIncome = $state<Transaction[]>([]);
-  let recentExpenses = $state<Transaction[]>([]);
-  let tenantStatuses = $state<PublicDashboardTenantStatus[]>([]);
+  // Filter periode — default: bulan berjalan. '' = Semua Bulan (dikirim sebagai "all")
+  let data = $state<PublicDashboard | null>(null);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+  let filterMonthKey = $state(currentMonthKey());
+
+  const periodLabel = $derived(
+    filterMonthKey === 'all' ? 'Semua Bulan' : monthLabelFromKey(filterMonthKey)
+  );
+  const filterValue = $derived(filterMonthKey === 'all' ? '' : monthLabelFromKey(filterMonthKey));
+  const filterMonths = $derived(data?.availableMonths ?? []);
 
   // --- Laporan Bulanan (PDF) ---
-  const monthOptions = (() => {
-    const now = new Date();
-    const labels: string[] = [];
-    const keys: string[] = [];
-    for (let i = 0; i < 36; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      labels.push(formatBillingMonth(d));
-      keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-    }
-    return { labels, keys };
-  })();
+  // Opsi bulan = bulan-tahun unik dari SEMUA transaksi di database (via public-dashboard)
+  const pdfMonths = $derived(data?.availableMonths ?? []);
 
   let selectedMonth = $state(formatBillingMonth());
   let exporting = $state(false);
+
+  // Bila bulan berjalan belum punya transaksi, default ke bulan terbaru yang punya data
+  $effect(() => {
+    if (pdfMonths.length > 0 && !pdfMonths.includes(selectedMonth)) {
+      selectedMonth = pdfMonths[0]!;
+    }
+  });
 
   async function handleExportPdf() {
     if (!selectedMonth) {
       toast.warning('Pilih bulan laporan dulu');
       return;
     }
-    const idx = monthOptions.labels.indexOf(selectedMonth);
-    const monthKey = idx >= 0 ? monthOptions.keys[idx]! : selectedMonth;
+    const monthKey = monthKeyFromLabel(selectedMonth);
     exporting = true;
     try {
       const report = await fin.getMonthlyReport(monthKey);
@@ -71,56 +71,57 @@
     }
   }
 
-  onMount(async () => {
-    await Promise.all([
-      dash.load(),
-      loadCharts(),
-      loadRecentIncome(),
-      loadRecentExpenses(),
-      loadTenantStatuses()
-    ]);
+  let loadSeq = 0;
+  async function load(): Promise<void> {
+    const seq = ++loadSeq;
+    loading = true;
+    error = null;
+    try {
+      const d = await fin.getPublicDashboard(filterMonthKey);
+      if (seq === loadSeq) data = d;
+    } catch {
+      if (seq === loadSeq) error = 'Gagal memuat data. Pastikan backend berjalan.';
+    } finally {
+      if (seq === loadSeq) loading = false;
+    }
+  }
+
+  onMount(load);
+
+  function onMonthChange(value: string): void {
+    // MonthFilter mengirim '' untuk "Semua Bulan" → internal pakai sentinel "all"
+    filterMonthKey = value ? monthKeyFromLabel(value) : 'all';
+    load();
+  }
+
+  // Bar chart: arus kas periode terpilih (per hari untuk bulan, per bulan untuk "all")
+  const barData = $derived({
+    labels: (data?.periodChart ?? []).map((p) => p.label),
+    datasets: [
+      {
+        label: 'Pemasukan',
+        data: (data?.periodChart ?? []).map((p) => p.income),
+        backgroundColor: '#34D399',
+        borderColor: '#34D399',
+        borderRadius: 6
+      },
+      {
+        label: 'Pengeluaran',
+        data: (data?.periodChart ?? []).map((p) => p.expense),
+        backgroundColor: '#F87171',
+        borderColor: '#F87171',
+        borderRadius: 6
+      }
+    ]
   });
-
-  async function loadTenantStatuses() {
-    try {
-      const pd = await fin.getPublicDashboard();
-      tenantStatuses = pd.tenants;
-    } catch {
-      /* silent */
-    }
-  }
-
-  async function loadCharts() {
-    try {
-      chartData = await fin.getChartData();
-    } catch {
-      /* silent */
-    }
-  }
-
-  async function loadRecentIncome() {
-    try {
-      recentIncome = await fin.getRecentIncome(5);
-    } catch {
-      /* silent */
-    }
-  }
-
-  async function loadRecentExpenses() {
-    try {
-      recentExpenses = await fin.getRecentExpenses(5);
-    } catch {
-      /* silent */
-    }
-  }
-
-  const isMobile = useIsMobile();
-
-  // Bar chart 7 hari (3 di mobile) + doughnut bulan ini — dibagi dengan halaman reports
-  const barData = $derived(buildCashflowBarData(chartData?.daily ?? [], isMobile.value));
+  // Doughnut: pemasukan vs pengeluaran sesuai periode terpilih
   const doughnutData = $derived(
-    buildMonthlyDoughnutData(chartData?.monthlyIncome ?? 0, chartData?.monthlyExpense ?? 0)
+    buildMonthlyDoughnutData(data?.monthly.income ?? 0, data?.monthly.expense ?? 0)
   );
+
+  // Tabel "terbaru": 5 transaksi pertama dari periode terpilih
+  const recentIncome = $derived((data?.recentIncome ?? []).slice(0, 5));
+  const recentExpenses = $derived((data?.recentExpenses ?? []).slice(0, 5));
 </script>
 
 <svelte:head>
@@ -128,18 +129,35 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <div>
-    <h1 class="headline-lg text-text-primary">Dashboard</h1>
-    <p class="mt-1 body-md text-text-secondary">Ringkasan keuangan kost Anda</p>
+  <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+    <div>
+      <h1 class="headline-lg text-text-primary">Dashboard</h1>
+      <p class="mt-1 body-md text-text-secondary">Ringkasan keuangan kost Anda — {periodLabel}</p>
+    </div>
+    {#if data}
+      <MonthFilter
+        months={filterMonths}
+        value={filterValue}
+        onchange={onMonthChange}
+        label="Periode"
+      />
+    {/if}
   </div>
 
-  {#if dash.loading}
+  {#if error}
+    <Card>
+      <div class="py-8 text-center">
+        <Icon name="error" size="2rem" class="mx-auto mb-3 text-error" />
+        <p class="body-md text-error">{error}</p>
+      </div>
+    </Card>
+  {:else if loading || !data}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {#each [1, 2, 3, 4] as _, i (i)}
         <div class="h-28 animate-pulse card-surface p-5"></div>
       {/each}
     </div>
-  {:else if dash.summary}
+  {:else}
     <!-- Stat Cards -->
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
       <div
@@ -154,8 +172,9 @@
           <span class="label-md text-text-secondary">Saldo</span>
         </div>
         <p class="truncate headline-sm text-text-primary lg:headline-md">
-          {formatRupiahDisplay(dash.summary.balance)}
+          {formatRupiahDisplay(data.monthly.closingBalance)}
         </p>
+        <p class="mt-0.5 label-md text-text-secondary">{periodLabel}</p>
       </div>
 
       <div
@@ -170,8 +189,9 @@
           <span class="label-md text-text-secondary">Pemasukan</span>
         </div>
         <p class="truncate headline-sm text-text-primary lg:headline-md">
-          {formatRupiahDisplay(dash.summary.totalIncome)}
+          {formatRupiahDisplay(data.monthly.income)}
         </p>
+        <p class="mt-0.5 label-md text-text-secondary">{periodLabel}</p>
       </div>
 
       <div
@@ -186,8 +206,9 @@
           <span class="label-md text-text-secondary">Pengeluaran</span>
         </div>
         <p class="truncate headline-sm text-text-primary lg:headline-md">
-          {formatRupiahDisplay(dash.summary.totalExpense)}
+          {formatRupiahDisplay(data.monthly.expense)}
         </p>
+        <p class="mt-0.5 label-md text-text-secondary">{periodLabel}</p>
       </div>
 
       <div
@@ -199,14 +220,15 @@
           >
             <Icon name="groups" class="text-tertiary" />
           </div>
-          <span class="label-md text-text-secondary">Penghuni</span>
+          <span class="label-md text-text-secondary">Pembayaran</span>
         </div>
         <div class="flex items-baseline gap-2">
-          <span class="headline-sm text-secondary lg:headline-md">{dash.summary.paidCount}</span>
+          <span class="headline-sm text-secondary lg:headline-md">{data.monthly.paidCount}</span>
           <span class="label-md text-text-secondary">Lunas,</span>
-          <span class="headline-sm text-error lg:headline-md">{dash.summary.unpaidCount}</span>
+          <span class="headline-sm text-error lg:headline-md">{data.monthly.unpaidCount}</span>
           <span class="label-md text-text-secondary">Blm</span>
         </div>
+        <p class="mt-0.5 label-md text-text-secondary">{periodLabel}</p>
       </div>
     </div>
 
@@ -215,29 +237,17 @@
       <Card>
         <h2 class="mb-4 flex items-center gap-2 headline-sm text-text-primary">
           <Icon name="bar_chart" size="1.25rem" class="text-primary" />
-          Arus Kas {isMobile.value ? '3' : '7'} Hari Terakhir
+          Arus Kas {periodLabel}
         </h2>
-        {#if chartData}
-          <Chart type="bar" data={barData} />
-        {:else}
-          <div class="flex h-[260px] items-center justify-center text-text-secondary">
-            <p>Memuat data...</p>
-          </div>
-        {/if}
+        <Chart type="bar" data={barData} />
       </Card>
 
       <Card>
         <h2 class="mb-4 flex items-center gap-2 headline-sm text-text-primary">
           <Icon name="donut_large" size="1.25rem" class="text-secondary" />
-          Pemasukan vs Pengeluaran Bulan Ini
+          Pemasukan vs Pengeluaran {periodLabel}
         </h2>
-        {#if chartData}
-          <Chart type="doughnut" data={doughnutData} />
-        {:else}
-          <div class="flex h-[260px] items-center justify-center text-text-secondary">
-            <p>Memuat data...</p>
-          </div>
-        {/if}
+        <Chart type="doughnut" data={doughnutData} />
       </Card>
     </div>
 
@@ -252,15 +262,21 @@
           <p class="body-md text-text-secondary">Pilih bulan lalu ekspor laporan keuangan ke PDF</p>
         </div>
       </div>
-      <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+      <!-- Desktop: kontrol di sisi kanan; mobile: kolom penuh w-full -->
+      <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
         <MonthFilter
-          months={monthOptions.labels}
+          months={pdfMonths}
           value={selectedMonth}
           onchange={(m) => (selectedMonth = m)}
           label="Bulan"
-          class="flex-1"
+          fullWidth
+          class="sm:w-auto"
         />
-        <Button icon="picture_as_pdf" onclick={handleExportPdf} disabled={exporting}>
+        <Button
+          icon="picture_as_pdf"
+          onclick={handleExportPdf}
+          disabled={exporting || pdfMonths.length === 0}
+        >
           {exporting ? 'Menyiapkan PDF...' : 'Export PDF'}
         </Button>
       </div>
@@ -276,8 +292,8 @@
         <Icon name="fact_check" size="1.25rem" class="text-tertiary" />
         <h2 class="headline-sm text-text-primary">Status Pembayaran Penghuni</h2>
       </div>
-      <p class="mb-4 label-md text-text-secondary">Bulan Ini</p>
-      <PaymentStatusTable tenants={tenantStatuses} />
+      <p class="mb-4 label-md text-text-secondary">{periodLabel}</p>
+      <PaymentStatusTable tenants={data.tenants} />
     </Card>
 
     <!-- Recent Income (Pemasukan) -->
@@ -292,11 +308,11 @@
       {#if recentIncome.length === 0}
         <div class="flex flex-col items-center justify-center gap-2 py-8 text-center">
           <Icon name="receipt_long" size="2rem" class="text-text-secondary" />
-          <p class="body-md text-text-secondary">Belum ada data pemasukan</p>
+          <p class="body-md text-text-secondary">Belum ada data pemasukan untuk {periodLabel}</p>
         </div>
       {:else}
         <div class="-mx-6 overflow-x-auto px-6">
-          <table class="w-full text-left">
+          <table class="w-full min-w-[640px] text-left">
             <thead>
               <tr class="border-b border-outline-variant/50 label-md text-text-secondary">
                 <th class="py-2 pr-3 font-medium">Tanggal</th>
@@ -312,7 +328,7 @@
                   <td class="py-2.5 pr-3 body-md whitespace-nowrap text-text-secondary"
                     >{tx.transactionDate}</td
                   >
-                  <td class="py-2.5 pr-3 body-md text-text-primary">{tx.user?.name ?? '-'}</td>
+                  <td class="py-2.5 pr-3 body-md text-text-primary">{tx.userName ?? '-'}</td>
                   <td class="py-2.5 pr-3 body-md text-text-primary"
                     >{tx.description || tx.category}</td
                   >
@@ -321,9 +337,13 @@
                     >{formatRupiahDisplay(tx.amount)}</td
                   >
                   <td class="py-2.5 text-right whitespace-nowrap">
-                    <Badge variant={billingStatusMeta(tx.status).badge}
-                      >{billingStatusMeta(tx.status).label}</Badge
-                    >
+                    {#if tx.status}
+                      <Badge variant={billingStatusMeta(tx.status).badge}
+                        >{billingStatusMeta(tx.status).label}</Badge
+                      >
+                    {:else}
+                      <span class="body-md text-text-secondary">—</span>
+                    {/if}
                   </td>
                 </tr>
               {/each}
@@ -345,11 +365,11 @@
       {#if recentExpenses.length === 0}
         <div class="flex flex-col items-center justify-center gap-2 py-8 text-center">
           <Icon name="receipt_long" size="2rem" class="text-text-secondary" />
-          <p class="body-md text-text-secondary">Belum ada data pengeluaran</p>
+          <p class="body-md text-text-secondary">Belum ada data pengeluaran untuk {periodLabel}</p>
         </div>
       {:else}
         <div class="-mx-6 overflow-x-auto px-6">
-          <table class="w-full text-left">
+          <table class="w-full min-w-[400px] text-left">
             <thead>
               <tr class="border-b border-outline-variant/50 label-md text-text-secondary">
                 <th class="py-2 pr-3 font-medium">Tanggal</th>
@@ -375,10 +395,6 @@
           </table>
         </div>
       {/if}
-    </Card>
-  {:else}
-    <Card>
-      <p class="py-8 text-center body-md text-text-secondary">Belum ada data</p>
     </Card>
   {/if}
 </div>

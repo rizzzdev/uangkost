@@ -65,7 +65,7 @@ async function addInstallment(
     ? await (() => {
         const fd = new FormData();
         fd.append('amount', String(input.amount));
-        if (input.note) fd.append('note', input.note);
+        if (input.description) fd.append('description', input.description);
         fd.append('paymentProof', file);
         return api.upload<Installment>(`/finance/${transactionId}/installments`, fd);
       })()
@@ -96,25 +96,31 @@ async function getAllInstallments(): Promise<InstallmentWithTransaction[]> {
 async function createInstallmentByAdmin(
   transactionId: string,
   input: CreateInstallmentInput,
-  file?: File
+  file?: File,
+  autoVerify = false
 ): Promise<Installment> {
   const result = file
     ? await (() => {
         const fd = new FormData();
         fd.append('transactionId', transactionId);
         fd.append('amount', String(input.amount));
-        if (input.note) fd.append('note', input.note);
+        if (input.description) fd.append('description', input.description);
+        if (autoVerify) fd.append('autoVerify', 'true');
         fd.append('paymentProof', file);
         return api.upload<Installment>('/finance/installments', fd);
       })()
-    : await api.post<Installment>('/finance/installments', { transactionId, ...input });
+    : await api.post<Installment>('/finance/installments', {
+        transactionId,
+        ...input,
+        ...(autoVerify ? { autoVerify: true } : {})
+      });
   await refresh();
   return result;
 }
 
 async function updateInstallment(
   installmentId: string,
-  input: { amount?: number; note?: string | null }
+  input: { amount?: number; description?: string | null }
 ): Promise<Installment> {
   const result = await api.put<Installment>(`/finance/installments/${installmentId}`, input);
   await refresh();
@@ -139,6 +145,11 @@ async function getRecentIncome(limit = 5): Promise<Transaction[]> {
   return api.get<Transaction[]>(`/finance?type=income&limit=${limit}`);
 }
 
+/** Tagihan (income) milik satu penghuni — dipakai halaman portal admin. */
+async function getTenantBills(tenantId: string): Promise<Transaction[]> {
+  return api.get<Transaction[]>(`/finance?userId=${encodeURIComponent(tenantId)}&type=income`);
+}
+
 async function getMonthlyReport(monthKey: string): Promise<MonthlyReport> {
   return api.get<MonthlyReport>(`/finance/monthly-report?month=${monthKey}`);
 }
@@ -160,15 +171,29 @@ export interface PublicDashboard {
     paidCount: number;
     unpaidCount: number;
   };
-  monthly: { income: number; expense: number; paidCount: number; unpaidCount: number };
+  monthly: {
+    income: number;
+    expense: number;
+    paidCount: number;
+    unpaidCount: number;
+    openingBalance: number;
+    closingBalance: number;
+  };
   chartData: ChartData;
+  periodChart: Array<{ label: string; income: number; expense: number }>;
   recentIncome: TenantExpense[];
   recentExpenses: TenantExpense[];
   tenants: PublicDashboardTenantStatus[];
+  availableMonths: string[];
 }
 
-async function getPublicDashboard(): Promise<PublicDashboard> {
-  return api.get<PublicDashboard>('/finance/public-dashboard');
+/**
+ * Data laporan publik. monthKey "YYYY-MM" memfilter data ke bulan tersebut;
+ * kosong/"" = Semua Bulan; undefined = bulan berjalan (default).
+ */
+async function getPublicDashboard(monthKey?: string): Promise<PublicDashboard> {
+  const q = monthKey ? `?month=${encodeURIComponent(monthKey)}` : '';
+  return api.get<PublicDashboard>(`/finance/public-dashboard${q}`);
 }
 
 async function getTenantCashflow(headers: Record<string, string>): Promise<{
@@ -204,6 +229,7 @@ export function getFinanceFeature() {
     getChartData,
     getRecentExpenses,
     getRecentIncome,
+    getTenantBills,
     getMonthlyReport,
     getTenantCashflow,
     getPublicDashboard

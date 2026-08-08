@@ -3,21 +3,30 @@
   import { getFinanceFeature, getTenantFeature } from '$lib/features/index.js';
   import {
     Button,
+    Card,
+    Chart,
     DataTable,
     Modal,
     Dropdown,
     Icon,
     Pagination,
+    MonthFilter,
     ConfirmDialog,
-    askConfirm
+    askConfirm,
+    buildTypeBarData
   } from '$lib/ui/index.js';
   import { toast } from '$lib/ui/molecules/toast-store.svelte.js';
   import {
     formatRupiahInput,
     parseRupiahInput,
     formatRupiahDisplay,
-    assetUrl
+    toDateKeyLocal,
+    assetUrl,
+    monthLabelFromDate,
+    uniqueMonthLabels,
+    useIsMobile
   } from '$lib/core/index.js';
+  import type { DailyPoint } from '$lib/ui/molecules/chart-builders.js';
   import type { InstallmentWithTransaction } from '$lib/features/finance/types.js';
 
   const finance = getFinanceFeature();
@@ -30,13 +39,14 @@
   let showCreate = $state(false);
   let showEdit = $state(false);
   let editInst = $state<InstallmentWithTransaction | null>(null);
-  let createForm = $state({ transactionId: '', amount: 0, note: '' });
-  let editForm = $state({ amount: 0, note: '' });
+  let createForm = $state({ transactionId: '', amount: 0, description: '' });
+  let editForm = $state({ amount: 0, description: '' });
   let createFile = $state<File | null>(null);
   let busy = $state(false);
 
-  // Pagination
+  // Pagination & filter bulan
   let page = $state(1);
+  let filterMonth = $state('');
   const PER_PAGE = 10;
 
   onMount(async () => {
@@ -63,19 +73,60 @@
       .filter((t) => t.type === 'income' && t.status !== 'paid')
       .map((t) => ({
         value: t.id,
-        label: `${t.user?.name ?? 'Tanpa penghuni'} — ${t.description || t.category} (${formatRupiahDisplay(Number(t.amount) - Number(t.totalPaid))} sisa)`,
+        label: `${t.user?.name ?? 'Tanpa penghuni'} — ${t.description || t.category} — ${t.billingMonth ?? monthLabelFromDate(t.transactionDate)} (${formatRupiahDisplay(Number(t.amount) - Number(t.totalPaid))} sisa)`,
         icon: 'receipt_long'
       }))
   );
 
-  const pagedRows = $derived(rows.slice((page - 1) * PER_PAGE, page * PER_PAGE));
+  // Filter bulan tahun dari pemasukan/tagihan (data sudah terurut terbaru dulu)
+  const monthOptions = $derived(uniqueMonthLabels(rows.map((r) => r.transaction.billingMonth)));
 
+  const filteredRows = $derived(
+    filterMonth ? rows.filter((r) => r.transaction.billingMonth === filterMonth) : rows
+  );
+
+  const pagedRows = $derived(filteredRows.slice((page - 1) * PER_PAGE, page * PER_PAGE));
+
+  // Jaga halaman tetap valid saat filter/data berubah
   $effect(() => {
-    const maxPage = Math.max(1, Math.ceil(rows.length / PER_PAGE));
+    const maxPage = Math.max(1, Math.ceil(filteredRows.length / PER_PAGE));
     if (page > maxPage) page = maxPage;
   });
 
-  const columns = ['Tanggal', 'Penghuni', 'Pemasukan', 'Jumlah', 'Status', 'Catatan'];
+  // Card stats — breakdown status cicilan
+  const totalCicilan = $derived(rows.reduce((s, r) => s + Number(r.amount), 0));
+  const verifiedAmount = $derived(
+    rows.reduce((s, r) => (r.isVerified ? s + Number(r.amount) : s), 0)
+  );
+  const pendingAmount = $derived(
+    rows.reduce((s, r) => (!r.isVerified && !r.rejectedAt ? s + Number(r.amount) : s), 0)
+  );
+  const rejectedAmount = $derived(
+    rows.reduce((s, r) => (r.rejectedAt ? s + Number(r.amount) : s), 0)
+  );
+
+  // Grafik cicilan 7 hari terakhir (3 di mobile) — agregasi dari tanggal pembayaran
+  const isMobile = useIsMobile();
+  const chartDaily = $derived.by((): DailyPoint[] => {
+    const now = new Date();
+    const days: DailyPoint[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      days.push({ date: key, income: 0, expense: 0 });
+    }
+    const byDate = new Map(days.map((d) => [d.date, d]));
+    for (const r of rows) {
+      // Tanggal cicilan otomatis dari createdAt (zona lokal)
+      const key = toDateKeyLocal(new Date(r.createdAt));
+      const entry = byDate.get(key);
+      if (entry) entry.income += Number(r.amount);
+    }
+    return days;
+  });
+  const barData = $derived(buildTypeBarData(chartDaily, 'income', isMobile.value));
+
+  const columns = ['Tanggal', 'Penghuni', 'Pemasukan', 'Jumlah', 'Status', 'Deskripsi'];
 
   function statusInfo(i: InstallmentWithTransaction): {
     text: string;
@@ -92,18 +143,18 @@
     col: string
   ): string | { text: string; icon?: string } {
     const map: Record<string, string | { text: string; icon?: string }> = {
-      Tanggal: row.createdAt ? new Date(row.createdAt).toLocaleDateString('id-ID') : '-',
+      Tanggal: toDateKeyLocal(new Date(row.createdAt)),
       Penghuni: row.transaction.user?.name ?? '-',
       Pemasukan: row.transaction.description || row.transaction.billingMonth || '-',
       Jumlah: formatRupiahDisplay(row.amount),
       Status: { text: statusInfo(row).text, icon: statusInfo(row).icon },
-      Catatan: row.note ?? '-'
+      Deskripsi: row.description ?? '-'
     };
     return map[col] ?? '';
   }
 
   function openCreate() {
-    createForm = { transactionId: '', amount: 0, note: '' };
+    createForm = { transactionId: '', amount: 0, description: '' };
     createFile = null;
     showCreate = true;
   }
@@ -121,7 +172,10 @@
     try {
       await finance.createInstallmentByAdmin(
         createForm.transactionId,
-        { amount: createForm.amount, note: createForm.note || undefined },
+        {
+          amount: createForm.amount,
+          description: createForm.description || undefined
+        },
         createFile ?? undefined
       );
       showCreate = false;
@@ -136,7 +190,10 @@
 
   function openEdit(i: InstallmentWithTransaction) {
     editInst = i;
-    editForm = { amount: Number(i.amount), note: i.note ?? '' };
+    editForm = {
+      amount: Number(i.amount),
+      description: i.description ?? ''
+    };
     showEdit = true;
   }
 
@@ -146,7 +203,7 @@
     try {
       await finance.updateInstallment(editInst.id, {
         amount: editForm.amount > 0 ? editForm.amount : undefined,
-        note: editForm.note || null
+        description: editForm.description || null
       });
       showEdit = false;
       editInst = null;
@@ -219,9 +276,54 @@
     <Button icon="add" onclick={openCreate}>Tambah Cicilan</Button>
   </div>
 
+  <!-- Total Card (mirror halaman Pemasukan) -->
+  <div
+    class="card-surface border-tertiary/20 bg-gradient-to-br from-tertiary/10 to-tertiary/5 p-5 card-glow"
+  >
+    <div class="flex items-center gap-3">
+      <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-tertiary/20">
+        <Icon name="payments" class="text-tertiary" />
+      </div>
+      <div>
+        <span class="label-md text-text-secondary">Total Cicilan</span>
+        <p class="headline-md text-text-primary">{formatRupiahDisplay(totalCicilan)}</p>
+      </div>
+    </div>
+    <p class="mt-2 label-md text-text-secondary">
+      Terverifikasi:
+      <span class="font-medium text-secondary">{formatRupiahDisplay(verifiedAmount)}</span>
+      · Menunggu:
+      <span class="font-medium text-tertiary">{formatRupiahDisplay(pendingAmount)}</span>
+      · Ditolak:
+      <span class="font-medium text-error">{formatRupiahDisplay(rejectedAmount)}</span>
+    </p>
+  </div>
+
+  <Card>
+    <h2 class="mb-4 flex items-center gap-2 headline-sm text-text-primary">
+      <Icon name="bar_chart" size="1.25rem" class="text-tertiary" />
+      Grafik Cicilan {isMobile.value ? '3' : '7'} Hari Terakhir
+    </h2>
+    {#if rows.length > 0}
+      <Chart type="bar" data={barData} />
+    {:else}
+      <div class="flex h-[260px] items-center justify-center text-text-secondary">
+        <p>Belum ada data cicilan</p>
+      </div>
+    {/if}
+  </Card>
+
   {#if loading}
     <div class="animate-pulse card-surface p-8"></div>
   {:else}
+    <div class="mb-3 flex justify-end">
+      <MonthFilter
+        months={monthOptions}
+        value={filterMonth}
+        onchange={(m) => (filterMonth = m)}
+        label="Bulan"
+      />
+    </div>
     <DataTable {columns} rows={pagedRows} {getCell} emptyMessage="Belum ada data cicilan">
       {#snippet children({ row }: { row: InstallmentWithTransaction })}
         <div class="flex items-center justify-end gap-1.5">
@@ -273,7 +375,12 @@
         </div>
       {/snippet}
     </DataTable>
-    <Pagination total={rows.length} perPage={PER_PAGE} {page} onchange={(p) => (page = p)} />
+    <Pagination
+      total={filteredRows.length}
+      perPage={PER_PAGE}
+      {page}
+      onchange={(p) => (page = p)}
+    />
   {/if}
 
   <!-- Create Modal -->
@@ -318,16 +425,17 @@
         />
       </div>
       <div>
-        <label for="installment-note-create" class="mb-1.5 block label-md text-text-secondary"
-          >Catatan (opsional)</label
+        <label
+          for="installment-description-create"
+          class="mb-1.5 block label-md text-text-secondary">Deskripsi</label
         >
         <input
-          id="installment-note-create"
+          id="installment-description-create"
           type="text"
           class="input-field"
           placeholder="Cicilan ke-1..."
-          value={createForm.note}
-          oninput={(e) => (createForm.note = (e.target as HTMLInputElement).value)}
+          value={createForm.description}
+          oninput={(e) => (createForm.description = (e.target as HTMLInputElement).value)}
         />
       </div>
       <div>
@@ -389,15 +497,17 @@
           />
         </div>
         <div>
-          <label for="installment-note-edit" class="mb-1.5 block label-md text-text-secondary"
-            >Catatan</label
+          <label
+            for="installment-description-edit"
+            class="mb-1.5 block label-md text-text-secondary">Deskripsi</label
           >
           <input
-            id="installment-note-edit"
+            id="installment-description-edit"
             type="text"
             class="input-field"
-            value={editForm.note}
-            oninput={(e) => (editForm.note = (e.target as HTMLInputElement).value)}
+            placeholder="Cicilan ke-2..."
+            value={editForm.description}
+            oninput={(e) => (editForm.description = (e.target as HTMLInputElement).value)}
           />
         </div>
         <Button type="submit" icon="save" class="mt-2 w-full" disabled={busy}>

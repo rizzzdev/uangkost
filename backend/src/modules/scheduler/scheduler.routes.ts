@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { requireAdmin } from "../../middlewares/auth.js";
+import { env } from "../../config/env.js";
 import { asyncHandler } from "../../middlewares/error-handler.js";
 import { ok } from "../../utils/response.js";
 import { getWaState } from "./wa.client.js";
@@ -12,7 +13,7 @@ router.get(
   requireAdmin,
   asyncHandler(async (_req: Request, res: Response) => {
     const state = getWaState();
-    ok(res, { ...state, tokenSet: !!process.env.FONNTE_TOKEN });
+    ok(res, { ...state, tokenSet: !!env.FONNTE_TOKEN });
   }),
 );
 

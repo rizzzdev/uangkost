@@ -76,18 +76,18 @@ export const updateTransactionSchema = z.object({
 
 export const createInstallmentSchema = z.object({
   amount: z.coerce.number().positive("Amount must be positive"),
-  note: z.string().max(200).optional(),
+  description: z.string().max(500).optional(),
 });
 
 export const createInstallmentByAdminSchema = z.object({
   transactionId: z.string().min(1, "Transaction is required"),
   amount: z.coerce.number().positive("Amount must be positive"),
-  note: z.string().max(200).optional(),
+  description: z.string().max(500).optional(),
 });
 
 export const updateInstallmentSchema = z.object({
   amount: z.coerce.number().positive("Amount must be positive").optional(),
-  note: z.string().max(200).nullable().optional(),
+  description: z.string().max(500).nullable().optional(),
 });
 
 // --- Settings schema ---

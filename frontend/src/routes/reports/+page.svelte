@@ -3,19 +3,22 @@
   import { getFinanceFeature } from '$lib/features/index.js';
   import {
     Badge,
+    BrandHeader,
     Card,
     Chart,
     Footer,
     Icon,
+    MonthFilter,
     PaymentStatusTable,
-    buildCashflowBarData,
     buildMonthlyDoughnutData
   } from '$lib/ui/index.js';
   import {
     formatRupiahDisplay,
-    useIsMobile,
     assetUrl,
-    billingStatusMeta
+    billingStatusMeta,
+    currentMonthKey,
+    monthLabelFromKey,
+    monthKeyFromLabel
   } from '$lib/core/index.js';
   import type { PublicDashboard } from '$lib/features/finance/index.svelte.js';
 
@@ -23,24 +26,63 @@
 
   let data = $state<PublicDashboard | null>(null);
   let error = $state<string | null>(null);
+  let loading = $state(true);
+  // Filter bulan — default: bulan berjalan. '' = Semua Bulan (dikirim sebagai "all")
+  let filterMonthKey = $state(currentMonthKey());
 
-  onMount(async () => {
+  const periodLabel = $derived(
+    filterMonthKey === 'all' ? 'Semua Bulan' : monthLabelFromKey(filterMonthKey)
+  );
+  const filterValue = $derived(filterMonthKey === 'all' ? '' : monthLabelFromKey(filterMonthKey));
+  const filterMonths = $derived(data?.availableMonths ?? []);
+
+  let loadSeq = 0;
+  async function load(): Promise<void> {
+    const seq = ++loadSeq;
+    loading = true;
+    error = null;
     try {
-      data = await fin.getPublicDashboard();
+      const d = await fin.getPublicDashboard(filterMonthKey);
+      if (seq === loadSeq) data = d;
     } catch {
-      error = 'Gagal memuat data. Pastikan backend berjalan.';
+      if (seq === loadSeq) error = 'Gagal memuat data. Pastikan backend berjalan.';
+    } finally {
+      if (seq === loadSeq) loading = false;
     }
+  }
+
+  onMount(load);
+
+  function onMonthChange(value: string): void {
+    // MonthFilter mengirim '' untuk "Semua Bulan" → internal pakai sentinel "all"
+    filterMonthKey = value ? monthKeyFromLabel(value) : 'all';
+    load();
+  }
+
+  // Bar chart: arus kas mengikuti periode terpilih (per hari untuk bulan,
+  // per bulan untuk "Semua Bulan") — dikirim backend sebagai periodChart
+  const barData = $derived({
+    labels: (data?.periodChart ?? []).map((p) => p.label),
+    datasets: [
+      {
+        label: 'Pemasukan',
+        data: (data?.periodChart ?? []).map((p) => p.income),
+        backgroundColor: '#34D399',
+        borderColor: '#34D399',
+        borderRadius: 6
+      },
+      {
+        label: 'Pengeluaran',
+        data: (data?.periodChart ?? []).map((p) => p.expense),
+        backgroundColor: '#F87171',
+        borderColor: '#F87171',
+        borderRadius: 6
+      }
+    ]
   });
-
-  const isMobile = useIsMobile();
-
-  // Bar chart 7 hari (3 di mobile) + doughnut bulan ini — dibagi dengan dashboard admin
-  const barData = $derived(buildCashflowBarData(data?.chartData.daily ?? [], isMobile.value));
+  // Doughnut: pemasukan vs pengeluaran sesuai bulan terpilih
   const doughnutData = $derived(
-    buildMonthlyDoughnutData(
-      data?.chartData.monthlyIncome ?? 0,
-      data?.chartData.monthlyExpense ?? 0
-    )
+    buildMonthlyDoughnutData(data?.monthly.income ?? 0, data?.monthly.expense ?? 0)
   );
 </script>
 
@@ -49,16 +91,16 @@
 </svelte:head>
 
 <div class="mx-auto min-h-screen max-w-6xl space-y-6 bg-background p-4 sm:p-6">
-  <div class="flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
-        <Icon name="bar_chart" size="1.25rem" class="text-primary" />
-      </div>
-      <div>
-        <h1 class="headline-sm text-primary">uangkost</h1>
-        <p class="label-md text-text-secondary">Laporan Bulan Ini — Publik</p>
-      </div>
-    </div>
+  <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+    <BrandHeader icon="bar_chart" subtitle="Laporan Publik — {periodLabel}" />
+    {#if data && !error}
+      <MonthFilter
+        months={filterMonths}
+        value={filterValue}
+        onchange={onMonthChange}
+        label="Periode"
+      />
+    {/if}
   </div>
 
   {#if error}
@@ -68,7 +110,7 @@
         <p class="body-md text-error">{error}</p>
       </div>
     </Card>
-  {:else if !data}
+  {:else if loading || !data}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {#each [1, 2, 3, 4] as _, i (i)}
         <div class="h-28 animate-pulse card-surface p-5"></div>
@@ -89,9 +131,9 @@
           <span class="label-md text-text-secondary">Saldo</span>
         </div>
         <p class="truncate headline-sm text-text-primary lg:headline-md">
-          {formatRupiahDisplay(data.summary.balance)}
+          {formatRupiahDisplay(data.monthly.closingBalance)}
         </p>
-        <p class="mt-0.5 label-md text-text-secondary">Semua Waktu</p>
+        <p class="mt-0.5 label-md text-text-secondary">{periodLabel}</p>
       </div>
 
       <div
@@ -108,7 +150,7 @@
         <p class="truncate headline-sm text-text-primary lg:headline-md">
           {formatRupiahDisplay(data.monthly.income)}
         </p>
-        <p class="mt-0.5 label-md text-text-secondary">Bulan Ini</p>
+        <p class="mt-0.5 label-md text-text-secondary">{periodLabel}</p>
       </div>
 
       <div
@@ -125,7 +167,7 @@
         <p class="truncate headline-sm text-text-primary lg:headline-md">
           {formatRupiahDisplay(data.monthly.expense)}
         </p>
-        <p class="mt-0.5 label-md text-text-secondary">Bulan Ini</p>
+        <p class="mt-0.5 label-md text-text-secondary">{periodLabel}</p>
       </div>
 
       <div
@@ -145,7 +187,7 @@
           <span class="headline-sm text-error lg:headline-md">{data.monthly.unpaidCount}</span>
           <span class="label-md text-text-secondary">Blm</span>
         </div>
-        <p class="mt-0.5 label-md text-text-secondary">Bulan Ini</p>
+        <p class="mt-0.5 label-md text-text-secondary">{periodLabel}</p>
       </div>
     </div>
 
@@ -154,14 +196,14 @@
       <Card>
         <h2 class="mb-4 flex items-center gap-2 headline-sm text-text-primary">
           <Icon name="bar_chart" size="1.25rem" class="text-primary" />
-          Arus Kas {isMobile.value ? '3' : '7'} Hari Terakhir
+          Arus Kas {periodLabel}
         </h2>
         <Chart type="bar" data={barData} />
       </Card>
       <Card>
         <h2 class="mb-4 flex items-center gap-2 headline-sm text-text-primary">
           <Icon name="donut_large" size="1.25rem" class="text-secondary" />
-          Pemasukan vs Pengeluaran Bulan Ini
+          Pemasukan vs Pengeluaran {periodLabel}
         </h2>
         <Chart type="doughnut" data={doughnutData} />
       </Card>
@@ -173,25 +215,25 @@
         <Icon name="fact_check" size="1.25rem" class="text-tertiary" />
         <h2 class="headline-sm text-text-primary">Status Pembayaran Penghuni</h2>
       </div>
-      <p class="mb-4 label-md text-text-secondary">Bulan Ini</p>
+      <p class="mb-4 label-md text-text-secondary">{periodLabel}</p>
       <PaymentStatusTable tenants={data.tenants} />
     </Card>
 
-    <!-- Recent Income (Pemasukan) -->
+    <!-- Pemasukan -->
     <Card>
       <div class="mb-1 flex items-center gap-2">
         <Icon name="payments" size="1.25rem" class="text-secondary" />
         <h2 class="headline-sm text-text-primary">Pemasukan</h2>
       </div>
-      <p class="mb-4 label-md text-text-secondary">Bulan Ini</p>
+      <p class="mb-4 label-md text-text-secondary">{periodLabel}</p>
       {#if data.recentIncome.length === 0}
         <div class="flex flex-col items-center justify-center gap-2 py-8 text-center">
           <Icon name="receipt_long" size="2rem" class="text-text-secondary" />
-          <p class="body-md text-text-secondary">Belum ada data pemasukan bulan ini</p>
+          <p class="body-md text-text-secondary">Belum ada data pemasukan untuk {periodLabel}</p>
         </div>
       {:else}
         <div class="-mx-6 overflow-x-auto px-6">
-          <table class="w-full text-left">
+          <table class="w-full min-w-[760px] text-left">
             <thead>
               <tr class="border-b border-outline-variant/50 label-md text-text-secondary">
                 <th class="py-2 pr-3 font-medium">Tanggal</th>
@@ -249,21 +291,21 @@
       {/if}
     </Card>
 
-    <!-- Recent Expenses -->
+    <!-- Pengeluaran -->
     <Card>
       <div class="mb-1 flex items-center gap-2">
         <Icon name="receipt_long" size="1.25rem" class="text-error" />
         <h2 class="headline-sm text-text-primary">Pengeluaran</h2>
       </div>
-      <p class="mb-4 label-md text-text-secondary">Bulan Ini</p>
+      <p class="mb-4 label-md text-text-secondary">{periodLabel}</p>
       {#if data.recentExpenses.length === 0}
         <div class="flex flex-col items-center justify-center gap-2 py-8 text-center">
           <Icon name="receipt_long" size="2rem" class="text-text-secondary" />
-          <p class="body-md text-text-secondary">Belum ada data pengeluaran bulan ini</p>
+          <p class="body-md text-text-secondary">Belum ada data pengeluaran untuk {periodLabel}</p>
         </div>
       {:else}
         <div class="-mx-6 overflow-x-auto px-6">
-          <table class="w-full text-left">
+          <table class="w-full min-w-[520px] text-left">
             <thead>
               <tr class="border-b border-outline-variant/50 label-md text-text-secondary">
                 <th class="py-2 pr-3 font-medium">Tanggal</th>

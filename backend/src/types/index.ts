@@ -140,12 +140,12 @@ export interface TransactionResponse {
 
 export interface CreateInstallmentInput {
   amount: number;
-  note?: string;
+  description?: string;
 }
 
 export interface UpdateInstallmentInput {
   amount?: number;
-  note?: string | null;
+  description?: string | null;
 }
 
 export interface InstallmentResponse {
@@ -156,7 +156,7 @@ export interface InstallmentResponse {
   isVerified: boolean;
   verifiedAt: string | null;
   rejectedAt: string | null;
-  note: string | null;
+  description: string | null;
   createdAt: Date;
 }
 

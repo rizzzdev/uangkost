@@ -8,7 +8,8 @@ const PREFIX = "uangkost:";
 export const CACHE_KEYS = {
   financeSummary: "finance:summary",
   financeChart: "finance:chart",
-  publicDashboard: "finance:public-dashboard",
+  publicDashboard: (monthKey: string) =>
+    `finance:public-dashboard:${monthKey || "current"}`,
   tenantCashflow: (tenantId: string) => `finance:tenant-cashflow:${tenantId}`,
   financeTransactions: (query: string) => `finance:transactions:${query}`,
   financeTenantTransactions: (tenantId: string) => `finance:tenant-transactions:${tenantId}`,
