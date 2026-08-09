@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: rizzzdev/uangkost:1.0.2
+    image: rizzzdev/uangkost:1.0.3
     restart: unless-stopped
     # Satu sumber konfigurasi: frontend/.env (PUBLIC_API_URL & COOKIE_DOMAIN).
     # HOST/PORT/NODE_ENV adalah nilai khusus container yang tetap.
@@ -20,7 +20,7 @@ services:
       - "traefik.http.services.master-bn.loadbalancer.server.port=4001"
 
   backend:
-    image: rizzzdev/api-uangkost:1.0.1 
+    image: rizzzdev/api-uangkost:1.0.2
     restart: unless-stopped
     # Satu sumber konfigurasi: backend/.env (aplikasi + DB/Redis + cookie domain).
     # NODE_ENV di-paksa production khusus container (mengabaikan value dev di .env).
