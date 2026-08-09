@@ -16,7 +16,7 @@
     buildTypeBarData
   } from '$lib/ui/index.js';
   import { toast } from '$lib/ui/molecules/toast-store.svelte.js';
-  import { API_BASE_URL } from '$lib/core/api-client.js';
+  import { api, API_BASE_URL } from '$lib/core/api-client.js';
   import {
     formatRupiahInput,
     parseRupiahInput,
@@ -90,20 +90,8 @@
         fd.append('description', form.description);
         fd.append('transactionDate', form.transactionDate);
         fd.append('paymentProof', uploadFile);
-        await fetch(`${API_BASE_URL}/finance/expense-with-proof`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/)?.[1] ?? ''}`
-          },
-          credentials: 'include',
-          body: fd
-        }).then(async (r) => {
-          if (!r.ok) {
-            const b = await r.json().catch(() => ({}));
-            throw new Error(b.message ?? 'Upload failed');
-          }
-        });
-        await finance.load('expense'); // refetch tabel (create via fetch mentah tidak otomatis)
+        await api.upload('/finance/expense-with-proof', fd);
+        await finance.load('expense'); // refetch tabel
       } else {
         await finance.create(input);
       }

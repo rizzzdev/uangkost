@@ -14,14 +14,16 @@ class ApiError extends Error {
   }
 }
 
-function getAccessToken(): string | null {
+export function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
-  return match ? match[1] : null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const accessToken = getAccessToken();
+  const accessToken = getCookie('access_token');
   const isFormData = options.body instanceof FormData;
 
   const headers: Record<string, string> = {
@@ -39,38 +41,50 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     credentials: 'include'
   });
 
-  // Auto-refresh on 401
+  // Auto-refresh on 401 Unauthorized
   if (res.status === 401) {
-    const refreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include'
-    });
-
-    if (refreshRes.ok) {
-      // Retry original request — new cookies set automatically via Set-Cookie
-      res = await fetch(`${BASE_URL}${endpoint}`, {
-        ...options,
-        headers: {
-          ...headers,
-          ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()!}` } : {})
-        },
+    try {
+      const refreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
       });
+
+      const refreshData = (await refreshRes.json().catch(() => ({}))) as {
+        accessToken?: string;
+        data?: { accessToken?: string };
+        error?: boolean;
+      };
+
+      if (refreshRes.ok && !refreshData.error) {
+        const newAccessToken =
+          refreshData.accessToken || refreshData.data?.accessToken || getCookie('access_token');
+
+        if (newAccessToken) {
+          headers['Authorization'] = `Bearer ${newAccessToken}`;
+          res = await fetch(`${BASE_URL}${endpoint}`, {
+            ...options,
+            headers,
+            credentials: 'include'
+          });
+        }
+      }
+    } catch {
+      // Abaikan error jaringan saat refresh client-side
     }
   }
 
   const json = (await res.json().catch(() => ({}))) as {
-    success: boolean;
+    success?: boolean;
     data?: T;
     message?: string;
   };
 
-  if (!res.ok || !json.success) {
+  if (!res.ok || json.success === false) {
     throw new ApiError(json.message ?? 'Request failed', res.status);
   }
 
-  return json.data as T;
+  return (json.data ?? json) as T;
 }
 
 export const api = {

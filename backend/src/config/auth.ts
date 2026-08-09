@@ -15,6 +15,8 @@ export const auth = createAuthExpress({
   }),
   apiKey: env.SENTRI_API_KEY,
   redisUrl: env.REDIS_URL,
+  accessExpiresIn: "15m",
+  refreshExpiresIn: "7d",
   cookie: {
     name: "refresh_token",
     httpOnly: true,
