@@ -13,7 +13,8 @@
     MonthFilter,
     Pagination,
     TenantBillCard,
-    BillSummary
+    BillSummary,
+    NotFound
   } from '$lib/ui/index.js';
   import { toast } from '$lib/ui/molecules/toast-store.svelte.js';
   import {
@@ -364,19 +365,11 @@
       />
     {/if}
   {:else}
-    <Card>
-      <div class="py-8 text-center">
-        <div
-          class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-error/10"
-        >
-          <Icon name="error" size="2rem" class="text-error" />
-        </div>
-        <p class="body-lg font-medium text-error">Link tidak valid atau sudah kadaluarsa</p>
-        <p class="mt-2 label-md text-text-secondary">
-          Silakan hubungi admin kost untuk mendapatkan link baru.
-        </p>
-      </div>
-    </Card>
+    <NotFound
+      title="Link Portal Tidak Valid atau Kedaluwarsa"
+      description="Link portal yang Anda gunakan sudah tidak berlaku atau tidak ditemukan. Silakan hubungi pengelola kost untuk mendapatkan link baru."
+      showHomeButton={false}
+    />
   {/if}
 
   <Footer />

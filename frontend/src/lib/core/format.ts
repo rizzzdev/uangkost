@@ -1,5 +1,3 @@
-import { API_BASE_URL } from './api-client.js';
-
 const MONTHS_ID = [
   'Januari',
   'Februari',
@@ -107,9 +105,11 @@ export function formatRupiahDisplay(value: number | string): string {
   return `Rp ${Math.floor(num).toLocaleString('id-ID')}`;
 }
 
-/** URL absolut untuk file upload (bukti pembayaran / QRIS). */
+/** URL file upload (bukti pembayaran / QRIS) — diserve langsung oleh Nginx di Production via path relatif /uploads/... */
 export function assetUrl(path: string | null | undefined): string {
-  return path ? `${API_BASE_URL.replace(/\/api$/, '')}${path}` : '';
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  return path.startsWith('/') ? path : `/${path}`;
 }
 
 /** Meta tampilan status pemasukan: label, variant badge, dan ikon. */

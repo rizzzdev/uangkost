@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { redis } from "../../config/redis.js";
 import { env } from "../../config/env.js";
-import { sendWaMessage, getWaState } from "./wa.client.js";
+import { sendWaMessage, getWaState } from "./wa-client.js";
 import { prisma, NOT_DELETED } from "../../config/prisma.js";
 import type { Prisma } from "@prisma/client";
 import { errorMessage } from "../../middlewares/error-handler.js";

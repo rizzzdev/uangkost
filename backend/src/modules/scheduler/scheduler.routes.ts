@@ -4,7 +4,7 @@ import { env } from "../../config/env.js";
 import { asyncHandler, errorMessage } from "../../middlewares/error-handler.js";
 import { ok } from "../../utils/response.js";
 import { prisma } from "../../config/prisma.js";
-import { getWaState } from "./wa.client.js";
+import { getWaState } from "./wa-client.js";
 import { scanAndSendReminders, createMonthlyBills } from "./worker.js";
 
 const router = Router();
