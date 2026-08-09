@@ -25,7 +25,7 @@
 </script>
 
 <svelte:head>
-  <title>uangkost — Login</title>
+  <title>Login — uangkost</title>
 </svelte:head>
 
 <div class="flex min-h-screen items-center justify-center bg-background p-4">

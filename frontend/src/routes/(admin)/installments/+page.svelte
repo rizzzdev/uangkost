@@ -264,7 +264,7 @@
 </script>
 
 <svelte:head>
-  <title>uangkost — Cicilan</title>
+  <title>Cicilan — uangkost</title>
 </svelte:head>
 
 <div class="space-y-6">

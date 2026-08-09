@@ -279,7 +279,7 @@
 </script>
 
 <svelte:head>
-  <title>uangkost — Pemasukan</title>
+  <title>Pemasukan — uangkost</title>
 </svelte:head>
 
 <div class="space-y-6">

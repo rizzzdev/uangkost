@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { getFinanceFeature } from '$lib/features/index.js';
-  import { API_BASE_URL } from '$lib/core/api-client.js';
+  import { api, API_BASE_URL } from '$lib/core/api-client.js';
   import {
     Badge,
     BrandHeader,
@@ -61,8 +61,8 @@
     load();
     // Cek sesi admin via cookie (httpOnly) — non-blocking, hanya untuk tombol dashboard
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/me`, { credentials: 'include' });
-      isAdmin = res.ok;
+      await api.get('/auth/me');
+      isAdmin = true;
     } catch {
       isAdmin = false;
     }
@@ -102,7 +102,7 @@
 </script>
 
 <svelte:head>
-  <title>uangkost — Laporan</title>
+  <title>Laporan Keuangan — uangkost</title>
 </svelte:head>
 
 <div class="mx-auto min-h-screen max-w-6xl space-y-6 bg-background p-4 sm:p-6">

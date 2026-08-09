@@ -139,3 +139,26 @@ enum PaymentStatus {
   unpaid
   partial
 }
+
+enum SchedulerLogType {
+  reminder
+  bill_creation
+}
+
+enum SchedulerLogStatus {
+  success
+  failed
+  skipped
+}
+
+model SchedulerLog {
+  id        String             @id @default(cuid())
+  type      SchedulerLogType
+  status    SchedulerLogStatus
+  title     String             @db.VarChar(150)
+  message   String             @db.Text
+  details   Json?
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  @@map("scheduler_logs")
+}

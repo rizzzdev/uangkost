@@ -110,7 +110,7 @@
 </script>
 
 <svelte:head>
-  <title>{portal.tenant?.name ?? 'Portal'} — uangkost</title>
+  <title>{portal.tenant?.name ? `Portal ${portal.tenant.name}` : 'Portal Penghuni'} — uangkost</title>
 </svelte:head>
 
 <div class="mx-auto min-h-screen max-w-3xl space-y-6 bg-background p-4 sm:p-6">

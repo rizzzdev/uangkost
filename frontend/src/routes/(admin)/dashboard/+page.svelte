@@ -124,7 +124,7 @@
 </script>
 
 <svelte:head>
-  <title>uangkost — Dashboard</title>
+  <title>Dashboard — uangkost</title>
 </svelte:head>
 
 <div class="space-y-6">

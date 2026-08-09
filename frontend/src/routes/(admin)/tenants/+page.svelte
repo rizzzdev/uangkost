@@ -120,7 +120,7 @@
 </script>
 
 <svelte:head>
-  <title>uangkost — Penghuni</title>
+  <title>Penghuni — uangkost</title>
 </svelte:head>
 
 <div class="space-y-6">

@@ -123,7 +123,7 @@
 </script>
 
 <svelte:head>
-  <title>{tenant?.name ?? 'Portal Admin'} — uangkost</title>
+  <title>{tenant?.name ? `${tenant.name} — Detail Penghuni` : 'Detail Penghuni'} — uangkost</title>
 </svelte:head>
 
 <div class="w-full space-y-6">

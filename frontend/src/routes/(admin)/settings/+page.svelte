@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getSettingsFeature, getWaFeature, type Settings } from '$lib/features/index.js';
-  import { Badge, Button, Card, Dropdown, Icon } from '$lib/ui/index.js';
+  import { askConfirm, Badge, Button, Card, DataTable, Dropdown, Icon, Pagination } from '$lib/ui/index.js';
   import { toast } from '$lib/ui/molecules/toast-store.svelte.js';
-  import { assetUrl, formatRupiahInput, parseRupiahInput } from '$lib/core/index.js';
+  import { api, assetUrl, formatRupiahInput, parseRupiahInput, toDateKeyLocal } from '$lib/core/index.js';
 
   const settingsFeature = getSettingsFeature();
   const wa = getWaFeature();
@@ -101,11 +101,116 @@
     };
   }
 
+  interface SchedulerLogItem {
+    id: string;
+    type: 'reminder' | 'bill_creation';
+    status: 'success' | 'failed' | 'skipped';
+    title: string;
+    message: string;
+    details?: Record<string, unknown>;
+    createdAt: string;
+  }
+
+  interface SchedulerLogsResponse {
+    logs: SchedulerLogItem[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }
+
+  let schedulerLogs = $state<SchedulerLogItem[]>([]);
+  let logsLoading = $state(false);
+  let logTypeFilter = $state<'all' | 'reminder' | 'bill_creation'>('all');
+  let logStatusFilter = $state<'all' | 'success' | 'failed' | 'skipped'>('all');
+  let clearingLogs = $state(false);
+  let logsPage = $state(1);
+  let logsTotal = $state(0);
+  const LOGS_PER_PAGE = 10;
+
+  const LOG_TYPE_OPTIONS = [
+    { value: 'all', label: 'Semua Tipe', icon: 'filter_list' },
+    { value: 'reminder', label: 'Pengingat WA', icon: 'chat' },
+    { value: 'bill_creation', label: 'Tagihan Otomatis', icon: 'receipt_long' }
+  ];
+
+  const LOG_STATUS_OPTIONS = [
+    { value: 'all', label: 'Semua Status', icon: 'filter_alt' },
+    { value: 'success', label: 'Berhasil', icon: 'check_circle' },
+    { value: 'failed', label: 'Gagal', icon: 'error' },
+    { value: 'skipped', label: 'Dilewati', icon: 'info' }
+  ];
+
+  const logColumns = ['Waktu', 'Tipe', 'Status', 'Pesan / Rincian'];
+
+  function getLogCell(
+    row: SchedulerLogItem,
+    col: string
+  ): string | { text: string; icon?: string } {
+    const d = new Date(row.createdAt);
+    const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = `${toDateKeyLocal(d)} ${timeStr}`;
+    const map: Record<string, string | { text: string; icon?: string }> = {
+      Waktu: dateStr,
+      Tipe: row.type === 'reminder' ? 'Pengingat WA' : 'Tagihan Otomatis',
+      Status: {
+        text: row.status === 'success' ? 'Berhasil' : row.status === 'failed' ? 'Gagal' : 'Dilewati',
+        icon: row.status === 'success' ? 'check_circle' : row.status === 'failed' ? 'error' : 'info'
+      },
+      'Pesan / Rincian': `${row.title} — ${row.message}`
+    };
+    return map[col] ?? '';
+  }
+
+  async function loadSchedulerLogs(targetPage = 1) {
+    logsLoading = true;
+    logsPage = targetPage;
+    try {
+      const params = new URLSearchParams();
+      if (logTypeFilter !== 'all') params.append('type', logTypeFilter);
+      if (logStatusFilter !== 'all') params.append('status', logStatusFilter);
+      params.append('page', String(targetPage));
+      params.append('limit', String(LOGS_PER_PAGE));
+      const query = params.toString() ? `?${params.toString()}` : '';
+      const res = await api.get<SchedulerLogsResponse>(`/scheduler/logs${query}`);
+      schedulerLogs = res.logs ?? [];
+      logsTotal = res.pagination?.total ?? schedulerLogs.length;
+    } catch (err) {
+      console.error('Gagal memuat log scheduler:', err);
+    } finally {
+      logsLoading = false;
+    }
+  }
+
+  async function handleClearLogs() {
+    const confirmClear = await askConfirm({
+      title: 'Hapus Log Penjadwalan',
+      message: 'Apakah Anda yakin ingin menghapus seluruh riwayat log penjadwalan otomatis?',
+      confirmText: 'Hapus Semua Log',
+      variant: 'danger'
+    });
+    if (!confirmClear) return;
+
+    clearingLogs = true;
+    try {
+      await api.delete('/scheduler/logs');
+      schedulerLogs = [];
+      toast.success('Log penjadwalan berhasil dibersihkan');
+    } catch {
+      toast.error('Gagal menghapus log');
+    } finally {
+      clearingLogs = false;
+    }
+  }
+
   onMount(async () => {
     await settingsFeature.load();
     form = toForm(settingsFeature.settings);
     botWa = settingsFeature.settings?.botWaStatus ?? false;
     await wa.fetchStatus();
+    await loadSchedulerLogs();
   });
 
   async function handleUploadQris(e: Event) {
@@ -179,6 +284,7 @@
       toast.error(`Gagal: ${msg}`);
     } finally {
       creatingBills = false;
+      await loadSchedulerLogs();
     }
   }
 
@@ -209,12 +315,13 @@
       toast.error(`Gagal: ${msg}`);
     } finally {
       sending = false;
+      await loadSchedulerLogs();
     }
   }
 </script>
 
 <svelte:head>
-  <title>uangkost — Pengaturan</title>
+  <title>Pengaturan — uangkost</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -569,5 +676,85 @@
         </p>
       {/if}
     </div>
+  </Card>
+
+  <Card>
+    <div class="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+      <div class="flex items-center gap-3">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/20">
+          <Icon name="history" class="text-primary" />
+        </div>
+        <div>
+          <h2 class="headline-sm text-text-primary">Log Penjadwalan Otomatis</h2>
+          <p class="body-md text-text-secondary">
+            Riwayat eksekusi pengingat WA dan pembuatan tagihan bulanan otomatis
+          </p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <Button
+          variant="primary"
+          icon="refresh"
+          size="sm"
+          onclick={() => loadSchedulerLogs()}
+          disabled={logsLoading}
+        >
+          {logsLoading ? 'Memuat...' : 'Refresh Log'}
+        </Button>
+
+        {#if schedulerLogs.length > 0}
+          <Button
+            variant="ghost"
+            icon="delete"
+            size="sm"
+            class="text-danger hover:bg-danger/10"
+            onclick={handleClearLogs}
+            disabled={clearingLogs}
+          >
+            {clearingLogs ? 'Hapus...' : 'Hapus Log'}
+          </Button>
+        {/if}
+      </div>
+    </div>
+
+    <!-- Filter Dropdowns -->
+    <div class="mb-4 flex flex-wrap items-center gap-3">
+      <Dropdown
+        options={LOG_TYPE_OPTIONS}
+        value={logTypeFilter}
+        onselect={(val) => {
+          logTypeFilter = val as 'all' | 'reminder' | 'bill_creation';
+          loadSchedulerLogs(1);
+        }}
+        class="w-48"
+      />
+      <Dropdown
+        options={LOG_STATUS_OPTIONS}
+        value={logStatusFilter}
+        onselect={(val) => {
+          logStatusFilter = val as 'all' | 'success' | 'failed' | 'skipped';
+          loadSchedulerLogs(1);
+        }}
+        class="w-44"
+      />
+    </div>
+
+    <!-- Logs Table & Pagination -->
+    {#if logsLoading}
+      <div class="py-8 text-center body-md text-text-secondary">Memuat log scheduler...</div>
+    {:else}
+      <DataTable
+        columns={logColumns}
+        rows={schedulerLogs}
+        getCell={getLogCell}
+        emptyMessage="Belum ada riwayat log penjadwalan otomatis."
+      />
+      <Pagination
+        total={logsTotal}
+        perPage={LOGS_PER_PAGE}
+        page={logsPage}
+        onchange={(p) => loadSchedulerLogs(p)}
+      />
+    {/if}
   </Card>
 </div>

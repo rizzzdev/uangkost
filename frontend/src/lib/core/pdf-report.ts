@@ -1,4 +1,4 @@
-﻿import { jsPDF, type jsPDF as JsPDF } from 'jspdf';
+import { jsPDF, type jsPDF as JsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatRupiahDisplay } from '$lib/core/format.js';
 import type { MonthlyReport } from '$lib/features/finance/types.js';
@@ -12,16 +12,16 @@ const MARGIN = 14;
  * Pastikan ruang vertikal cukup sebelum menggambar heading section.
  * Bila hampir penuh, pindah ke halaman baru agar heading tidak terpisah dari tabelnya.
  */
-function ensureSectionSpace(doc: JsPDF, y: number): number {
+function ensureSectionSpace(doc: JsPDF, verticalPosition: number): number {
   const pageBottom = doc.internal.pageSize.getHeight() - 24;
-  if (y > pageBottom) {
+  if (verticalPosition > pageBottom) {
     doc.addPage();
     return 30;
   }
-  return y;
+  return verticalPosition;
 }
 
-/** Footer nomor halaman â€” digambar untuk setiap halaman (dipanggil per halaman). */
+/** Footer nomor halaman - digambar untuk setiap halaman (dipanggil per halaman). */
 function drawPageFooter(
   doc: JsPDF,
   pageNum: number,
@@ -51,26 +51,24 @@ export function downloadMonthlyReportPdf(report: MonthlyReport): void {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Header
+  // Header (Centered, bold title + date)
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text('uangkost', MARGIN, 16);
-  doc.setFontSize(12);
-  doc.text(`Laporan Keuangan Bulanan â€” ${report.month}`, MARGIN, 24);
+  doc.setFontSize(15);
+  doc.text(`Laporan Keuangan Bulanan - ${report.month}`, pageWidth / 2, 20, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(130);
-  doc.text(`Dibuat: ${new Date().toLocaleDateString('id-ID')}`, MARGIN, 30);
+  doc.text(`Dibuat: ${new Date().toLocaleDateString('id-ID')}`, pageWidth / 2, 27, { align: 'center' });
   doc.setTextColor(0);
 
   // Section Ringkasan
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('Ringkasan', MARGIN, 36);
+  doc.text('Ringkasan', MARGIN, 40);
 
   autoTable(doc, {
-    startY: 40,
+    startY: 45,
     head: [['Ringkasan', 'Jumlah']],
     body: [
       ['Saldo Awal Bulan', formatRupiahDisplay(report.openingBalance)],
@@ -91,28 +89,30 @@ export function downloadMonthlyReportPdf(report: MonthlyReport): void {
       }
     }
   });
-  let y = (doc as AutoTableDoc).lastAutoTable.finalY + 14;
+  let currentY = (doc as AutoTableDoc).lastAutoTable.finalY + 14;
 
-  const incomeItems = report.items.filter((it) => it.type === 'income');
+  const incomeItems = report.items.filter(
+    (it) => it.type === 'income' && (it.status === 'paid' || it.status === 'partial')
+  );
   const expenseItems = report.items.filter((it) => it.type === 'expense');
 
   // Section Pemasukan
-  y = ensureSectionSpace(doc, y);
+  currentY = ensureSectionSpace(doc, currentY);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('Pemasukan', MARGIN, y);
-  y += 4;
+  doc.text('Pemasukan', MARGIN, currentY);
+  currentY += 4;
 
   if (incomeItems.length === 0) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(9);
     doc.setTextColor(130);
-    doc.text('Tidak ada pemasukan pada bulan ini.', MARGIN, y + 6);
+    doc.text('Tidak ada pemasukan pada bulan ini.', MARGIN, currentY + 6);
     doc.setTextColor(0);
-    y += 14;
+    currentY += 14;
   } else {
     autoTable(doc, {
-      startY: y,
+      startY: currentY,
       head: [['Tanggal', 'Penghuni', 'Keterangan', 'Jumlah']],
       body: incomeItems.map((it) => [
         it.transactionDate,
@@ -136,26 +136,26 @@ export function downloadMonthlyReportPdf(report: MonthlyReport): void {
       columnStyles: { 3: { halign: 'right' } },
       margin: { left: MARGIN, right: MARGIN }
     });
-    y = (doc as AutoTableDoc).lastAutoTable.finalY + 14;
+    currentY = (doc as AutoTableDoc).lastAutoTable.finalY + 14;
   }
 
   // Section Pengeluaran
-  y = ensureSectionSpace(doc, y);
+  currentY = ensureSectionSpace(doc, currentY);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('Pengeluaran', MARGIN, y);
-  y += 4;
+  doc.text('Pengeluaran', MARGIN, currentY);
+  currentY += 4;
 
   if (expenseItems.length === 0) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(9);
     doc.setTextColor(130);
-    doc.text('Tidak ada pengeluaran pada bulan ini.', MARGIN, y + 6);
+    doc.text('Tidak ada pengeluaran pada bulan ini.', MARGIN, currentY + 6);
     doc.setTextColor(0);
-    y += 12;
+    currentY += 12;
   } else {
     autoTable(doc, {
-      startY: y,
+      startY: currentY,
       head: [['Tanggal', 'Deskripsi', 'Jumlah']],
       body: expenseItems.map((it) => [
         it.transactionDate,
@@ -178,22 +178,22 @@ export function downloadMonthlyReportPdf(report: MonthlyReport): void {
       columnStyles: { 2: { halign: 'right' } },
       margin: { left: MARGIN, right: MARGIN }
     });
-    y = (doc as AutoTableDoc).lastAutoTable.finalY + 12;
+    currentY = (doc as AutoTableDoc).lastAutoTable.finalY + 12;
   }
 
-  // Penutup â€” hormat kami dan nama pengelola (rata kanan)
+  // Penutup - hormat kami dan nama pengelola (rata kanan)
   const lineHeight = 12;
   // Pastikan blok penutup muat di halaman ini
-  if (y + lineHeight > doc.internal.pageSize.getHeight() - 24) {
+  if (currentY + lineHeight > doc.internal.pageSize.getHeight() - 24) {
     doc.addPage();
-    y = 30;
+    currentY = 30;
   }
   const rightX = pageWidth - MARGIN;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text('Hormat kami,', rightX, y, { align: 'right' });
+  doc.text('Hormat kami,', rightX, currentY, { align: 'right' });
   doc.setFont('helvetica', 'bold');
-  doc.text('Admin uangkost', rightX, y + lineHeight, { align: 'right' });
+  doc.text('Admin uangkost', rightX, currentY + lineHeight, { align: 'right' });
 
   // Footer untuk SEMUA halaman (termasuk halaman terakhir tanpa tabel)
   const totalPages = doc.getNumberOfPages();

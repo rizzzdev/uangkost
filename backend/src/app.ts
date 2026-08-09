@@ -54,6 +54,19 @@ function withCookieDomain(): (req: Request, res: Response, next: NextFunction) =
       }
       return originalAppend(field, value);
     }) as Response["append"];
+
+    const originalSetHeader = res.setHeader.bind(res) as Response["setHeader"];
+    res.setHeader = ((name: string, value: string | number | readonly string[]) => {
+      if (typeof name === "string" && name.toLowerCase() === "set-cookie") {
+        if (typeof value === "string") {
+          value = ensureCookieDomain(value);
+        } else if (Array.isArray(value)) {
+          value = value.map((v) => ensureCookieDomain(String(v)));
+        }
+      }
+      return originalSetHeader(name, value as Parameters<Response["setHeader"]>[1]);
+    }) as Response["setHeader"];
+
     next();
   };
 }

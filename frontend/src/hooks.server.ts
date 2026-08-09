@@ -93,7 +93,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 
       if (meRes.ok) {
         const body = (await meRes.json().catch(() => ({}))) as MeResponse;
-        const raw = body.data ?? (body as unknown as MeResponseData);
+        const raw: MeResponseData | undefined =
+          body.data ?? (typeof body === 'object' && body !== null ? (body as MeResponseData) : undefined);
         if (raw?.id) {
           event.locals.user = {
             id: raw.id,
