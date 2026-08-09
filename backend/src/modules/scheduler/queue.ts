@@ -1,19 +1,23 @@
 import { Queue } from "bullmq";
 import { redis } from "../../config/redis.js";
 import { prisma } from "../../config/prisma.js";
+import { env } from "../../config/env.js";
 
 export const WA_REMINDERS_QUEUE = "wa-reminders";
 
 export const waQueue = new Queue(WA_REMINDERS_QUEUE, {
   connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 2000,
+    },
+    removeOnComplete: true,
+    removeOnFail: false,
+  },
 });
 
-/**
- * Konversi periode + "HH:MM" + hari/tanggal → cron 5-bagian.
- * - daily   → setiap hari (argumen hari/tanggal diabaikan)
- * - weekly  → hari-hari pilihan (weekdays, 0=Minggu..6=Sabtu; default: Senin)
- * - monthly → tanggal pilihan (dates 1..31; default: 1)
- */
 export function toCronPattern(
   frequency: string,
   hhmm: string,
@@ -21,11 +25,10 @@ export function toCronPattern(
   dates?: string | null,
 ): string {
   const [h, m] = hhmm.split(":").map(Number);
-  const safeH = Number.isFinite(h) ? h : 0;
-  const safeM = Number.isFinite(m) ? m : 0;
+  const safeH = Number.isFinite(h) ? h! : 0;
+  const safeM = Number.isFinite(m) ? m! : 0;
   switch (frequency) {
     case "weekly": {
-      // 0=Minggu..6=Sabtu → cron 1=Senin..7=Minggu; buang nilai di luar rentang
       const days = (weekdays ?? "1")
         .split(",")
         .map(Number)
@@ -35,7 +38,6 @@ export function toCronPattern(
       return `${safeM} ${safeH} * * ${safe}`;
     }
     case "monthly": {
-      // tanggal 1..31; buang nilai di luar rentang agar croniter tidak error
       const days = (dates ?? "1")
         .split(",")
         .map(Number)
@@ -45,15 +47,14 @@ export function toCronPattern(
       return `${safeM} ${safeH} ${safe} * *`;
     }
     default:
-      return `${safeM} ${safeH} * * *`; // daily
+      return `${safeM} ${safeH} * * *`;
   }
 }
 
-/** Default jadwal bila admin belum menyetel. */
 export const DEFAULT_SCHEDULES = {
   reminderFrequency: "daily",
   reminderTime: "08:00",
-  reminderWeekdays: "1", // Senin
+  reminderWeekdays: "1",
   reminderDates: "1",
   billCreationFrequency: "daily",
   billCreationTime: "00:05",
@@ -61,10 +62,6 @@ export const DEFAULT_SCHEDULES = {
   billCreationDates: "1",
 } as const;
 
-/**
- * Sinkronkan jadwal repeatable job dengan pengaturan admin.
- * Dipanggil saat server start & setiap kali admin mengubah jadwal.
- */
 export async function syncScheduleJobs(): Promise<void> {
   const settings = await prisma.systemSetting.findFirst({ where: { id: 1 } });
   const reminderPattern = toCronPattern(
@@ -80,7 +77,6 @@ export async function syncScheduleJobs(): Promise<void> {
     settings?.billCreationDates ?? DEFAULT_SCHEDULES.billCreationDates,
   );
 
-  // Hapus job lama agar perubahan jadwal langsung berlaku (tanpa restart)
   const jobs = await waQueue.getRepeatableJobs();
   for (const job of jobs) {
     if (job.id === "daily-unpaid-scan" || job.id === "monthly-bill-creation") {
@@ -92,10 +88,11 @@ export async function syncScheduleJobs(): Promise<void> {
     "scan-unpaid-tenants",
     { manual: false },
     {
-      repeat: { pattern: reminderPattern },
+      repeat: {
+        pattern: reminderPattern,
+        tz: env.TIMEZONE,
+      },
       jobId: "daily-unpaid-scan",
-      removeOnComplete: true,
-      removeOnFail: true,
     },
   );
 
@@ -103,10 +100,11 @@ export async function syncScheduleJobs(): Promise<void> {
     "create-monthly-bills",
     { manual: false },
     {
-      repeat: { pattern: billPattern },
+      repeat: {
+        pattern: billPattern,
+        tz: env.TIMEZONE,
+      },
       jobId: "monthly-bill-creation",
-      removeOnComplete: true,
-      removeOnFail: true,
     },
   );
 

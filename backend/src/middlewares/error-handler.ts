@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import type { ApiResponse } from "../types/index.js";
+import { getErrorMessage, isAppError, isZodError } from "../utils/type-guards.js";
 
 export class AppError extends Error {
   public readonly statusCode: number;
@@ -13,7 +14,6 @@ export class AppError extends Error {
   }
 }
 
-/** Error HTTP generik (mis. dari multer/zod/Sentri) yang membawa status opsional. */
 interface HttpError extends Error {
   status?: number;
   statusCode?: number;
@@ -27,9 +27,8 @@ export function asyncHandler(
   };
 }
 
-/** Ambil pesan aman dari error tak dikenal (catch block dengan unknown). */
-export function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "Unknown error";
+export function errorMessage(err: Error | AppError | unknown): string {
+  return getErrorMessage(err);
 }
 
 export function errorHandler(
@@ -38,7 +37,7 @@ export function errorHandler(
   res: Response<ApiResponse<never>>,
   _next: NextFunction,
 ): void {
-  if (err instanceof AppError) {
+  if (isAppError(err)) {
     res.status(err.statusCode).json({
       success: false,
       message: err.message,
@@ -46,8 +45,18 @@ export function errorHandler(
     return;
   }
 
-  const status = (err as HttpError).status ?? (err as HttpError).statusCode;
-  if (typeof status === "number" && status >= 401 && status < 500) {
+  if (isZodError(err)) {
+    const formatted = err.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    res.status(400).json({
+      success: false,
+      message: `Validation error: ${formatted}`,
+    });
+    return;
+  }
+
+  const httpErr = err as HttpError;
+  const status = httpErr.status ?? httpErr.statusCode;
+  if (typeof status === "number" && status >= 400 && status < 500) {
     res.status(status).json({
       success: false,
       message: err.message,

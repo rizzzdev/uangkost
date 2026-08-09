@@ -5,7 +5,10 @@ import { AppError } from "../middlewares/error-handler.js";
  * Parse & validate request body dengan Zod schema.
  * Throw AppError(400) jika tidak valid.
  */
-export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
+export function validate<T>(
+  schema: z.ZodSchema<T>,
+  data: object | Record<string, string | number | boolean | null | undefined>,
+): T {
   const result = schema.safeParse(data);
   if (!result.success) {
     const messages = result.error.issues

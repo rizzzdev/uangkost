@@ -16,7 +16,7 @@
     buildTypeBarData
   } from '$lib/ui/index.js';
   import { toast } from '$lib/ui/molecules/toast-store.svelte.js';
-  import { api, API_BASE_URL } from '$lib/core/api-client.js';
+  import { api } from '$lib/core/api-client.js';
   import {
     formatRupiahInput,
     parseRupiahInput,

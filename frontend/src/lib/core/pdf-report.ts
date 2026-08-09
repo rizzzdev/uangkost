@@ -59,7 +59,9 @@ export function downloadMonthlyReportPdf(report: MonthlyReport): void {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(130);
-  doc.text(`Dibuat: ${new Date().toLocaleDateString('id-ID')}`, pageWidth / 2, 27, { align: 'center' });
+  doc.text(`Dibuat: ${new Date().toLocaleDateString('id-ID')}`, pageWidth / 2, 27, {
+    align: 'center'
+  });
   doc.setTextColor(0);
 
   // Section Ringkasan

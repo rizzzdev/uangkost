@@ -302,11 +302,22 @@ export const waWorker = new Worker(
   { connection: redis },
 );
 
-// Jadwal repeatable job kini dikelola dari pengaturan admin (lihat queue.ts).
-// Terapkan jadwal saat server start — perubahan selanjutnya via endpoint settings.
-void syncScheduleJobs().catch((err) =>
-  console.error("[scheduler] gagal menerapkan jadwal:", errorMessage(err)),
-);
+// Terapkan jadwal saat server start dengan retry otomatis bila DB/Redis masih booting
+async function initSchedulerWithRetry(retries = 5, delayMs = 3000): Promise<void> {
+  for (let i = 1; i <= retries; i++) {
+    try {
+      await syncScheduleJobs();
+      return;
+    } catch (err) {
+      console.warn(
+        `[scheduler] Percobaan ${i}/${retries} gagal menerapkan jadwal:`,
+        errorMessage(err),
+      );
+      if (i < retries) await new Promise((res) => setTimeout(res, delayMs));
+    }
+  }
+}
+void initSchedulerWithRetry();
 
 waWorker.on("completed", (job) => {
   console.log(`Job ${job.id} completed`);

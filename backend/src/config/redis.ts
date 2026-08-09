@@ -1,12 +1,13 @@
 import { Redis } from "ioredis";
 import { env } from "./env.js";
 
-const globalForRedis = globalThis as unknown as {
-  redis: Redis | undefined;
-};
+declare global {
+  // eslint-disable-next-line no-var
+  var __redisClient: Redis | undefined;
+}
 
 export const redis: Redis =
-  globalForRedis.redis ??
+  globalThis.__redisClient ??
   new Redis(env.REDIS_URL, {
     maxRetriesPerRequest: null,
     retryStrategy(times: number): number | null {
@@ -16,7 +17,7 @@ export const redis: Redis =
   });
 
 if (env.NODE_ENV !== "production") {
-  globalForRedis.redis = redis;
+  globalThis.__redisClient = redis;
 }
 
 redis.on("error", (err: Error) => {

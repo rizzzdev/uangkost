@@ -1,11 +1,11 @@
 import { env } from "../../config/env.js";
+import { isError } from "../../utils/type-guards.js";
 
 export interface WaState {
   connected: boolean;
-  qrCode: null; // no longer used, kept for API compatibility
+  qrCode: null;
 }
 
-/** Payload API Fonnte (https://api.fonnte.com/send). */
 interface FonnteSendPayload {
   target: string;
   message: string;
@@ -18,25 +18,25 @@ const waState: WaState = {
   qrCode: null,
 };
 
-console.log("[WA] FONNTE_TOKEN", env.FONNTE_TOKEN ? `configured (${env.FONNTE_TOKEN.slice(0, 8)}...)` : "NOT SET");
-
 export function getWaState(): WaState {
   waState.connected = !!env.FONNTE_TOKEN;
   return { ...waState };
 }
 
 /**
- * Send WhatsApp message via Fonnte REST API.
- * Returns true on success, throws on failure.
+ * Send WhatsApp message via Fonnte REST API with AbortController timeout resilience.
  */
-export async function sendWaMessage(phone: string, message: string, linkUrl?: string): Promise<void> {
+export async function sendWaMessage(
+  phone: string,
+  message: string,
+  linkUrl?: string,
+  timeoutMs = 10000,
+): Promise<void> {
   if (!env.FONNTE_TOKEN) {
     throw new Error("FONNTE_TOKEN not configured");
   }
 
-  const normalizedPhone = phone.startsWith("0")
-    ? `62${phone.slice(1)}`
-    : phone;
+  const normalizedPhone = phone.startsWith("0") ? `62${phone.slice(1)}` : phone;
 
   const body: FonnteSendPayload = {
     target: normalizedPhone,
@@ -44,31 +44,46 @@ export async function sendWaMessage(phone: string, message: string, linkUrl?: st
     countryCode: "62",
   };
 
-  // Fonnte link preview — URL jadi clickable button di WhatsApp
   if (linkUrl) {
     body.url = linkUrl;
   }
 
-  const res = await fetch("https://api.fonnte.com/send", {
-    method: "POST",
-    headers: {
-      Authorization: env.FONNTE_TOKEN,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  const resBody = await res.text().catch(() => "");
-  console.log(`[WA] Fonnte response ${res.status}:`, resBody.slice(0, 200));
+  try {
+    const res = await fetch("https://api.fonnte.com/send", {
+      method: "POST",
+      headers: {
+        Authorization: env.FONNTE_TOKEN,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
 
-  if (!res.ok) {
-    throw new Error(`Fonnte API error ${res.status}: ${resBody}`);
-  }
+    const resBody = await res.text().catch(() => "");
 
-  let json: { status?: boolean; detail?: string } = {};
-  try { json = JSON.parse(resBody); } catch { /* not JSON */ }
+    if (!res.ok) {
+      throw new Error(`Fonnte API error ${res.status}: ${resBody}`);
+    }
 
-  if (!json.status) {
-    throw new Error(`Fonnte gagal: ${json.detail ?? resBody}`);
+    let json: { status?: boolean; detail?: string } = {};
+    try {
+      json = JSON.parse(resBody) as { status?: boolean; detail?: string };
+    } catch {
+      /* not JSON */
+    }
+
+    if (!json.status) {
+      throw new Error(`Fonnte gagal: ${json.detail ?? resBody}`);
+    }
+  } catch (err) {
+    if (isError(err) && err.name === "AbortError") {
+      throw new Error(`Fonnte API request timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
 }

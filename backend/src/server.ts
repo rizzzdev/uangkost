@@ -48,7 +48,7 @@ process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 // Handle unhandled rejections
-process.on("unhandledRejection", (reason: unknown) => {
+process.on("unhandledRejection", (reason: Error | string | null | undefined) => {
   console.error("Unhandled rejection:", reason);
 });
 

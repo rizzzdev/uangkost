@@ -1,11 +1,21 @@
 import { Router } from "express";
 import { requireAdmin, requireTenant } from "../../middlewares/auth.js";
+import { rateLimiter } from "../../middlewares/rate-limiter.js";
 import * as ctrl from "./tenant.controller.js";
 
 const router = Router();
 
-// Login portal (publik): validasi token → rotate → set sesi cookie
-router.post("/portal-login", ctrl.portalLogin);
+// Rate limiter khusus endpoint login portal (maksimal 10 hit per 15 menit per IP)
+const portalLoginLimiter = rateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxHits: 10,
+  message: "Terlalu banyak percobaan masuk portal. Silakan coba lagi 15 menit kemudian.",
+});
+
+// Login portal (publik): validasi token + last4Phone → rotate → set sesi cookie
+router.post("/portal-login", portalLoginLimiter, ctrl.portalLogin);
+// Logout portal: bersihkan cookie sesi
+router.post("/portal-logout", ctrl.portalLogout);
 // Profil tenant via sesi cookie
 router.get("/me", requireTenant, ctrl.me);
 

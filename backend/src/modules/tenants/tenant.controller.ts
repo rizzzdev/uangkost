@@ -61,19 +61,22 @@ export const regenerateToken = asyncHandler(
 );
 
 /**
- * Login portal penghuni (magic link): validasi token RAW → rotate ke token baru →
+ * Login portal penghuni (magic link): validasi token RAW + last4Phone → rotate ke token baru →
  * set sesi cookie httpOnly. Token lama mati setelah dipakai (one-time entry).
  */
 export const portalLogin = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const raw = (req.body?.token as string | undefined) ??
+    const raw =
+      (req.body?.token as string | undefined) ??
       (req.query.token as string | undefined);
+    const last4Phone = req.body?.last4Phone as string | undefined;
+
     if (!raw) {
       res.status(401).json({ success: false, message: "Access token required" });
       return;
     }
 
-    const { token, hash, user } = await tenantService.loginWithToken(raw);
+    const { token, hash, user } = await tenantService.loginWithToken(raw, last4Phone);
     const session = jwt.sign(
       { sub: user.id, th: hash },
       env.JWT_SECRET,
@@ -89,6 +92,21 @@ export const portalLogin = asyncHandler(
     });
 
     ok(res, { token, user });
+  },
+);
+
+/**
+ * Logout portal penghuni: bersihkan cookie sesi tenant_session.
+ */
+export const portalLogout = asyncHandler(
+  async (_req: Request, res: Response): Promise<void> => {
+    res.clearCookie(TENANT_SESSION_COOKIE, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: env.NODE_ENV === "production",
+      path: "/",
+    });
+    ok(res, { message: "Sesi portal berhasil diakhiri." });
   },
 );
 

@@ -2,8 +2,7 @@ import { redirect, type Handle } from '@sveltejs/kit';
 import { env as publicEnv } from '$env/dynamic/public';
 import { env as privateEnv } from '$env/dynamic/private';
 
-const API_URL =
-  (publicEnv as Record<string, string>).PUBLIC_API_URL || 'http://localhost:4000/api';
+const API_URL = (publicEnv as Record<string, string>).PUBLIC_API_URL || 'http://localhost:4000/api';
 const AUTH_URL = `${API_URL}/auth`;
 
 const getCookieDomain = (): string => {
@@ -32,14 +31,7 @@ interface MeResponse {
   data?: MeResponseData;
 }
 
-const PROTECTED = [
-  '/dashboard',
-  '/billing',
-  '/installments',
-  '/expenses',
-  '/tenants',
-  '/settings'
-];
+const PROTECTED = ['/dashboard', '/billing', '/installments', '/expenses', '/tenants', '/settings'];
 const GUEST_ONLY = ['/login'];
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -48,12 +40,8 @@ export const handle: Handle = async ({ event, resolve }) => {
   const refreshToken = event.cookies.get('refresh_token');
   const apiSetCookies: string[] = [];
 
-  const isProtected = PROTECTED.some(
-    (p) => pathname === p || pathname.startsWith(p + '/')
-  );
-  const isGuest = GUEST_ONLY.some(
-    (p) => pathname === p || pathname.startsWith(p + '/')
-  );
+  const isProtected = PROTECTED.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  const isGuest = GUEST_ONLY.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
   if (!isProtected && !isGuest) {
     return resolve(event);
@@ -94,7 +82,8 @@ export const handle: Handle = async ({ event, resolve }) => {
       if (meRes.ok) {
         const body = (await meRes.json().catch(() => ({}))) as MeResponse;
         const raw: MeResponseData | undefined =
-          body.data ?? (typeof body === 'object' && body !== null ? (body as MeResponseData) : undefined);
+          body.data ??
+          (typeof body === 'object' && body !== null ? (body as MeResponseData) : undefined);
         if (raw?.id) {
           event.locals.user = {
             id: raw.id,

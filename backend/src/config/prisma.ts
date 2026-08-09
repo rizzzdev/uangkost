@@ -3,6 +3,11 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { env } from "./env.js";
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __prismaClient: PrismaClient | undefined;
+}
+
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
 });
@@ -16,15 +21,10 @@ function createPrismaClient(): PrismaClient {
   });
 }
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma: PrismaClient =
-  globalForPrisma.prisma ?? createPrismaClient();
+export const prisma: PrismaClient = globalThis.__prismaClient ?? createPrismaClient();
 
 if (env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+  globalThis.__prismaClient = prisma;
 }
 
 export async function disconnectPrisma(): Promise<void> {

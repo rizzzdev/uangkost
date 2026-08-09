@@ -1,7 +1,8 @@
 import { prisma, NOT_DELETED } from "../../config/prisma.js";
 import { cached, cacheInvalidate, cacheInvalidatePattern, CACHE_KEYS } from "../../config/cache.js";
 import { AppError } from "../../middlewares/error-handler.js";
-import type { Prisma } from "@prisma/client";
+import { toTransactionResponse, toDateKey, type TransactionWithRelations } from "../../utils/mappers.js";
+import type { Prisma, Installment } from "@prisma/client";
 import type {
   CreateTransactionInput,
   UpdateTransactionInput,
@@ -11,53 +12,9 @@ import type {
   MonthlyReportResponse,
 } from "../../types/index.js";
 
-type TransactionWithRelations = Prisma.TransactionGetPayload<{
-  include: {
-    user: { select: { name: true; roomNumber: true } };
-    installments: true;
-  };
-}>;
-
-function toDateKey(d: Date): string {
-  return d.toISOString().split("T")[0]!;
-}
-
-function toTransactionResponse(tx: TransactionWithRelations): TransactionResponse {
-  return {
-    id: tx.id,
-    userId: tx.userId,
-    type: tx.type,
-    amount: tx.amount.toString(),
-    totalPaid: tx.totalPaid.toString(),
-    billingMonth: tx.billingMonth,
-    status: tx.status,
-    category: tx.category,
-    description: tx.description,
-    transactionDate: toDateKey(tx.transactionDate),
-    paymentProofUrl: tx.paymentProofUrl,
-    isVerified: tx.isVerified,
-    waNotifiedAt: tx.waNotifiedAt?.toISOString() ?? null,
-    createdAt: tx.createdAt,
-    updatedAt: tx.updatedAt,
-    user: tx.user
-      ? { name: tx.user.name, roomNumber: tx.user.roomNumber }
-      : null,
-    installments: tx.installments?.map((i) => ({
-      id: i.id,
-      transactionId: i.transactionId,
-      amount: i.amount.toString(),
-      paymentProofUrl: i.paymentProofUrl,
-      isVerified: i.isVerified,
-      verifiedAt: i.verifiedAt?.toISOString() ?? null,
-      rejectedAt: i.rejectedAt?.toISOString() ?? null,
-      description: i.description,
-      createdAt: i.createdAt,
-    })),
-  };
-}
-
 const MONTHS_ID = [
   "Januari",
+
   "Februari",
   "Maret",
   "April",
@@ -772,8 +729,8 @@ function toTenantExpense(
   // (bukan di transaction). Prioritas: bukti transaksi → bukti cicilan terverifikasi → cicilan apa pun.
   const proof = opts.includeProof
     ? (tx.paymentProofUrl ??
-        tx.installments?.find((i) => i.isVerified && i.paymentProofUrl)?.paymentProofUrl ??
-        tx.installments?.find((i) => i.paymentProofUrl)?.paymentProofUrl ??
+        tx.installments?.find((i: Installment) => i.isVerified && i.paymentProofUrl)?.paymentProofUrl ??
+        tx.installments?.find((i: Installment) => i.paymentProofUrl)?.paymentProofUrl ??
         null)
     : undefined;
 

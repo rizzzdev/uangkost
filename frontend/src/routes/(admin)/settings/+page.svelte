@@ -1,9 +1,24 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getSettingsFeature, getWaFeature, type Settings } from '$lib/features/index.js';
-  import { askConfirm, Badge, Button, Card, DataTable, Dropdown, Icon, Pagination } from '$lib/ui/index.js';
+  import {
+    askConfirm,
+    Badge,
+    Button,
+    Card,
+    DataTable,
+    Dropdown,
+    Icon,
+    Pagination
+  } from '$lib/ui/index.js';
   import { toast } from '$lib/ui/molecules/toast-store.svelte.js';
-  import { api, assetUrl, formatRupiahInput, parseRupiahInput, toDateKeyLocal } from '$lib/core/index.js';
+  import {
+    api,
+    assetUrl,
+    formatRupiahInput,
+    parseRupiahInput,
+    toDateKeyLocal
+  } from '$lib/core/index.js';
 
   const settingsFeature = getSettingsFeature();
   const wa = getWaFeature();
@@ -156,7 +171,8 @@
       Waktu: dateStr,
       Tipe: row.type === 'reminder' ? 'Pengingat WA' : 'Tagihan Otomatis',
       Status: {
-        text: row.status === 'success' ? 'Berhasil' : row.status === 'failed' ? 'Gagal' : 'Dilewati',
+        text:
+          row.status === 'success' ? 'Berhasil' : row.status === 'failed' ? 'Gagal' : 'Dilewati',
         icon: row.status === 'success' ? 'check_circle' : row.status === 'failed' ? 'error' : 'info'
       },
       'Pesan / Rincian': `${row.title} — ${row.message}`
@@ -168,6 +184,7 @@
     logsLoading = true;
     logsPage = targetPage;
     try {
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const params = new URLSearchParams();
       if (logTypeFilter !== 'all') params.append('type', logTypeFilter);
       if (logStatusFilter !== 'all') params.append('status', logStatusFilter);

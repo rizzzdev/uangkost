@@ -3,6 +3,7 @@ import { prisma, NOT_DELETED } from "../../config/prisma.js";
 import { cached, cacheInvalidate, CACHE_KEYS } from "../../config/cache.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../middlewares/error-handler.js";
+import { toTenantResponse } from "../../utils/mappers.js";
 import type {
   CreateTenantInput,
   UpdateTenantInput,
@@ -24,19 +25,6 @@ function generateAccessToken(): { raw: string; hash: string; expiresAt: Date } {
   return { raw, hash: sha256(raw), expiresAt };
 }
 
-function toTenantResponse(user: User): TenantResponse {
-  return {
-    id: user.id,
-    role: user.role,
-    name: user.name,
-    phone: user.phone,
-    roomNumber: user.roomNumber,
-    isActive: user.isActive,
-    accessTokenExpiresAt: user.accessTokenExpiresAt?.toISOString() ?? null,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
-  };
-}
 
 export async function getAllTenants(): Promise<TenantResponse[]> {
   return cached(CACHE_KEYS.tenantsList, async () => {
@@ -189,16 +177,30 @@ export async function issuePortalToken(userId: string): Promise<string> {
 }
 
 /**
- * Login portal: validasi token RAW (hash + aktif + belum expired),
+ * Login portal: validasi token RAW (hash + aktif + belum expired) + verifikasi 4 digit terakhir nomor HP,
  * lalu ROTATE ke token baru (link lama langsung mati = one-time entry).
  * Mengembalikan raw token baru + hash (untuk sesi cookie).
  */
 export async function loginWithToken(
   rawToken: string,
+  last4Phone?: string,
 ): Promise<{ token: string; hash: string; user: TenantResponse }> {
   const tenant = await findTenantByRawToken(rawToken);
   if (!tenant) {
-    throw new AppError("Invalid or expired access token", 401);
+    throw new AppError("Link portal tidak valid atau sudah kedaluwarsa.", 401);
+  }
+
+  // Jika tenant memiliki nomor telepon terdaftar, konfirmasi 4 digit terakhir
+  if (tenant.phone) {
+    const cleanPhone = tenant.phone.replace(/\D/g, "");
+    const actualLast4 = cleanPhone.slice(-4);
+
+    if (!last4Phone || last4Phone.trim() !== actualLast4) {
+      throw new AppError(
+        "4 digit terakhir nomor WhatsApp tidak sesuai.",
+        400,
+      );
+    }
   }
 
   const { raw, hash, expiresAt } = generateAccessToken();

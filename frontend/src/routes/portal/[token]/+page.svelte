@@ -58,26 +58,53 @@
   const monthPaid = $derived(filteredBills.reduce((s, t) => s + Number(t.totalPaid), 0));
   const monthRemaining = $derived(monthTotal - monthPaid);
 
+  let needPhoneVerification = $state(false);
+  let inputLast4 = $state('');
+  let verifyingToken = $state(false);
+  let verificationError = $state('');
+
   onMount(async () => {
     const tok = $page.params.token;
     try {
       // 1) Coba pakai sesi cookie dulu (tanpa perlu token di URL)
       await Promise.all([portal.load(), portal.loadBank()]);
     } catch {
-      // 2) Belum ada sesi — login magic link (validasi → rotate → set cookie)
-      if (!tok) return;
-      try {
-        const newToken = await portal.login(tok);
-        // Perbarui URL ke token baru agar link yang terlihat tetap valid
-        history.replaceState(null, '', `/portal/${newToken}`);
-        await Promise.all([portal.load(), portal.loadBank()]);
-      } catch {
-        // Token tidak valid / kedaluwarsa — state error tampil otomatis
+      // 2) Belum ada sesi — minta konfirmasi 4 digit nomor HP
+      if (tok) {
+        needPhoneVerification = true;
       }
     } finally {
       initializing = false;
     }
   });
+
+  async function handleConfirmPhone() {
+    const tok = $page.params.token;
+    if (!tok || inputLast4.trim().length !== 4) {
+      verificationError = 'Masukkan 4 digit terakhir nomor WhatsApp Anda.';
+      return;
+    }
+    verifyingToken = true;
+    verificationError = '';
+    try {
+      const newToken = await portal.login(tok, inputLast4.trim());
+      history.replaceState(null, '', `/portal/${newToken}`);
+      await Promise.all([portal.load(), portal.loadBank()]);
+      needPhoneVerification = false;
+      toast.success('Konfirmasi berhasil! Selamat datang di portal.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Verifikasi gagal';
+      verificationError = msg;
+    } finally {
+      verifyingToken = false;
+    }
+  }
+
+  async function handleLogout() {
+    await portal.logout();
+    toast.info('Sesi portal diakhiri.');
+    goto(resolve('/login'));
+  }
 
   const pagedBills = $derived(filteredBills.slice((billPage - 1) * PER_PAGE, billPage * PER_PAGE));
 
@@ -110,24 +137,81 @@
 </script>
 
 <svelte:head>
-  <title>{portal.tenant?.name ? `Portal ${portal.tenant.name}` : 'Portal Penghuni'} — uangkost</title>
+  <title
+    >{portal.tenant?.name ? `Portal ${portal.tenant.name}` : 'Portal Penghuni'} — uangkost</title
+  >
 </svelte:head>
 
 <div class="mx-auto min-h-screen max-w-3xl space-y-6 bg-background p-4 sm:p-6">
   <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
     <BrandHeader subtitle="Portal Penghuni" />
-    <Button
-      variant="secondary"
-      icon="bar_chart"
-      title="Lihat laporan keuangan publik"
-      onclick={() => goto(resolve('/reports'))}
-    >
-      Lihat Laporan
-    </Button>
+    <div class="flex items-center gap-2">
+      <Button
+        variant="secondary"
+        icon="bar_chart"
+        title="Lihat laporan keuangan publik"
+        onclick={() => goto(resolve('/reports'))}
+      >
+        Lihat Laporan
+      </Button>
+      {#if portal.tenant}
+        <Button
+          variant="ghost"
+          icon="logout"
+          title="Keluar dari sesi portal"
+          onclick={handleLogout}
+        >
+          Keluar
+        </Button>
+      {/if}
+    </div>
   </div>
 
   {#if initializing || portal.loading}
     <div class="animate-pulse card-surface p-8"></div>
+  {:else if needPhoneVerification}
+    <Card class="border-primary/30">
+      <div class="mx-auto max-w-md space-y-4 py-6 text-center">
+        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
+          <Icon name="verified_user" size="2rem" class="text-primary" />
+        </div>
+        <div>
+          <h2 class="headline-sm text-text-primary">Konfirmasi Identitas Penghuni</h2>
+          <p class="body-sm mt-1 text-text-secondary">
+            Demi keamanan akun Anda, silakan masukkan 4 digit terakhir nomor WhatsApp yang
+            terdaftar:
+          </p>
+        </div>
+
+        <div class="space-y-2 text-left">
+          <label for="last4-input" class="label-md text-text-secondary"
+            >4 Digit Terakhir Nomor HP</label
+          >
+          <input
+            id="last4-input"
+            type="text"
+            maxLength={4}
+            placeholder="misal: 1234"
+            bind:value={inputLast4}
+            class="input-field text-center font-mono text-lg tracking-widest"
+            onkeydown={(e) => e.key === 'Enter' && handleConfirmPhone()}
+          />
+          {#if verificationError}
+            <p class="body-xs text-error">{verificationError}</p>
+          {/if}
+        </div>
+
+        <Button
+          variant="primary"
+          icon="check_circle"
+          class="w-full"
+          onclick={handleConfirmPhone}
+          disabled={verifyingToken || inputLast4.trim().length !== 4}
+        >
+          {verifyingToken ? 'Memverifikasi...' : 'Konfirmasi & Masuk'}
+        </Button>
+      </div>
+    </Card>
   {:else if portal.tenant}
     <!-- Tenant Info -->
     <Card>

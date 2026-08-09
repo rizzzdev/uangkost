@@ -1,6 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { prisma, NOT_DELETED } from "../../config/prisma.js";
 import { AppError } from "../../middlewares/error-handler.js";
 import { invalidateFinanceCache } from "./finance.service.js";
+import { toInstallmentResponse, toInstallmentWithTransactionResponse } from "../../utils/mappers.js";
 import type {
   CreateInstallmentInput,
   UpdateInstallmentInput,
@@ -8,41 +10,15 @@ import type {
   InstallmentWithTransactionResponse,
 } from "../../types/index.js";
 
-function computeStatus(amount: number, totalPaid: number): "unpaid" | "partial" | "paid" {
-  if (totalPaid >= amount) return "paid";
-  if (totalPaid > 0) return "partial";
+function computeStatus(amount: Prisma.Decimal, totalPaid: Prisma.Decimal): "unpaid" | "partial" | "paid" {
+  if (totalPaid.gte(amount)) return "paid";
+  if (totalPaid.gt(0)) return "partial";
   return "unpaid";
-}
-
-function toResponse(i: {
-  id: string;
-  transactionId: string;
-  amount: { toString(): string };
-  paymentProofUrl: string | null;
-  isVerified: boolean;
-  verifiedAt: Date | null;
-  rejectedAt: Date | null;
-  description: string | null;
-  createdAt: Date;
-}): InstallmentResponse {
-  return {
-    id: i.id,
-    transactionId: i.transactionId,
-    amount: i.amount.toString(),
-    paymentProofUrl: i.paymentProofUrl,
-    isVerified: i.isVerified,
-    verifiedAt: i.verifiedAt?.toISOString() ?? null,
-    rejectedAt: i.rejectedAt?.toISOString() ?? null,
-    description: i.description,
-    createdAt: i.createdAt,
-  };
 }
 
 /**
  * Tenant uploads a cicilan payment for a transaction.
- * Validates: no overpay, transaction exists and is unpaid/partial.
- * totalPaid hanya bertambah setelah diverifikasi admin, KECUALI autoVerify=true
- * (admin menginput langsung → langsung terverifikasi & masuk totalPaid).
+ * Wrapped in prisma.$transaction for database concurrency safety & data integrity.
  */
 export async function createInstallment(
   transactionId: string,
@@ -50,77 +26,75 @@ export async function createInstallment(
   proofFilePath?: string,
   autoVerify = false,
 ): Promise<InstallmentResponse> {
-  const tx = await prisma.transaction.findFirst({
-    where: { id: transactionId, ...NOT_DELETED },
-  });
-
-  if (!tx) {
-    throw new AppError("Transaction not found", 404);
-  }
-
-  if (tx.type !== "income") {
-    throw new AppError("Cicilan hanya untuk tagihan (income)", 400);
-  }
-
-  if (tx.status === "paid") {
-    throw new AppError("Tagihan sudah lunas", 400);
-  }
-
-  // Hitung cicilan yang masih pending (belum diverifikasi & belum ditolak)
-  const pendingAgg = await prisma.installment.aggregate({
-    _sum: { amount: true },
-    where: {
-      transactionId,
-      isVerified: false,
-      rejectedAt: null,
-      ...NOT_DELETED,
-    },
-  });
-
-  const remaining =
-    Number(tx.amount) -
-    Number(tx.totalPaid) -
-    Number(pendingAgg._sum.amount ?? 0);
-
-  if (input.amount <= 0) {
-    throw new AppError("Jumlah cicilan harus lebih dari 0", 400);
-  }
-
-  if (input.amount > remaining) {
-    throw new AppError(
-      `Tidak boleh overpay. Sisa tagihan: Rp${remaining.toLocaleString("id-ID")}`,
-      400,
-    );
-  }
-
-  const installment = await prisma.installment.create({
-    data: {
-      transactionId,
-      amount: input.amount,
-      description: input.description ?? null,
-      paymentProofUrl: proofFilePath ?? null,
-      ...(autoVerify ? { isVerified: true, verifiedAt: new Date() } : {}),
-    },
-  });
-
-  // Admin menginput langsung: cicilan langsung terverifikasi → tambah ke totalPaid & status
-  if (autoVerify) {
-    const newTotalPaid = Number(tx.totalPaid) + Number(installment.amount);
-    const newStatus = computeStatus(Number(tx.amount), newTotalPaid);
-    await prisma.transaction.update({
-      where: { id: tx.id },
-      data: { totalPaid: newTotalPaid, status: newStatus },
+  const result = await prisma.$transaction(async (tx) => {
+    const transaction = await tx.transaction.findFirst({
+      where: { id: transactionId, ...NOT_DELETED },
     });
-  }
 
-  await invalidateFinanceCache(); // SEBELUM respons — refetch client selalu dapat data segar
-  return toResponse(installment);
+    if (!transaction) {
+      throw new AppError("Transaction not found", 404);
+    }
+
+    if (transaction.type !== "income") {
+      throw new AppError("Cicilan hanya untuk tagihan (income)", 400);
+    }
+
+    if (transaction.status === "paid") {
+      throw new AppError("Tagihan sudah lunas", 400);
+    }
+
+    const inputAmount = new Prisma.Decimal(input.amount);
+    if (inputAmount.lte(0)) {
+      throw new AppError("Jumlah cicilan harus lebih dari 0", 400);
+    }
+
+    // Hitung cicilan pending
+    const pendingAgg = await tx.installment.aggregate({
+      _sum: { amount: true },
+      where: {
+        transactionId,
+        isVerified: false,
+        rejectedAt: null,
+        ...NOT_DELETED,
+      },
+    });
+
+    const pendingSum = pendingAgg._sum.amount ?? new Prisma.Decimal(0);
+    const remaining = transaction.amount.minus(transaction.totalPaid).minus(pendingSum);
+
+    if (inputAmount.gt(remaining)) {
+      throw new AppError(
+        `Tidak boleh overpay. Sisa tagihan: Rp${remaining.toNumber().toLocaleString("id-ID")}`,
+        400,
+      );
+    }
+
+    const installment = await tx.installment.create({
+      data: {
+        transactionId,
+        amount: inputAmount,
+        description: input.description ?? null,
+        paymentProofUrl: proofFilePath ?? null,
+        ...(autoVerify ? { isVerified: true, verifiedAt: new Date() } : {}),
+      },
+    });
+
+    if (autoVerify) {
+      const newTotalPaid = transaction.totalPaid.plus(installment.amount);
+      const newStatus = computeStatus(transaction.amount, newTotalPaid);
+      await tx.transaction.update({
+        where: { id: transaction.id },
+        data: { totalPaid: newTotalPaid, status: newStatus },
+      });
+    }
+
+    return installment;
+  });
+
+  await invalidateFinanceCache();
+  return toInstallmentResponse(result);
 }
 
-/**
- * Admin creates a cicilan directly (manual record) for a transaction.
- * autoVerify=true → cicilan langsung terverifikasi (dipakai halaman portal admin).
- */
 export async function createInstallmentByAdmin(
   transactionId: string,
   input: CreateInstallmentInput,
@@ -130,160 +104,133 @@ export async function createInstallmentByAdmin(
   return createInstallment(transactionId, input, proofFilePath, autoVerify);
 }
 
-/**
- * Admin edits a cicilan (amount / note) — keeps totalPaid consistent.
- */
 export async function updateInstallment(
   id: string,
   input: UpdateInstallmentInput,
 ): Promise<InstallmentResponse> {
-  const installment = await prisma.installment.findFirst({
-    where: { id, ...NOT_DELETED },
+  const result = await prisma.$transaction(async (tx) => {
+    const installment = await tx.installment.findFirst({
+      where: { id, ...NOT_DELETED },
+    });
+    if (!installment) throw new AppError("Installment not found", 404);
+
+    const transaction = await tx.transaction.findFirst({
+      where: { id: installment.transactionId, ...NOT_DELETED },
+    });
+    if (!transaction) throw new AppError("Transaction not found", 404);
+
+    const newAmount = input.amount !== undefined ? new Prisma.Decimal(input.amount) : installment.amount;
+    if (newAmount.lte(0)) {
+      throw new AppError("Jumlah cicilan harus lebih dari 0", 400);
+    }
+
+    const othersVerified = await tx.installment.aggregate({
+      _sum: { amount: true },
+      where: {
+        transactionId: transaction.id,
+        isVerified: true,
+        ...NOT_DELETED,
+        id: { not: id },
+      },
+    });
+
+    const verifiedTotal = othersVerified._sum.amount ?? new Prisma.Decimal(0);
+    const remaining = transaction.amount.minus(verifiedTotal);
+
+    if (newAmount.gt(remaining)) {
+      throw new AppError(
+        `Tidak boleh overpay. Sisa tagihan: Rp${remaining.toNumber().toLocaleString("id-ID")}`,
+        400,
+      );
+    }
+
+    const updated = await tx.installment.update({
+      where: { id },
+      data: {
+        amount: newAmount,
+        ...(input.description !== undefined && { description: input.description }),
+      },
+    });
+
+    const verifiedAgg = await tx.installment.aggregate({
+      _sum: { amount: true },
+      where: { transactionId: transaction.id, isVerified: true, ...NOT_DELETED },
+    });
+
+    const totalPaid = verifiedAgg._sum.amount ?? new Prisma.Decimal(0);
+    const newStatus = computeStatus(transaction.amount, totalPaid);
+
+    await tx.transaction.update({
+      where: { id: transaction.id },
+      data: { totalPaid, status: newStatus },
+    });
+
+    return updated;
   });
-  if (!installment) throw new AppError("Installment not found", 404);
 
-  const tx = await prisma.transaction.findFirst({
-    where: { id: installment.transactionId, ...NOT_DELETED },
-  });
-  if (!tx) throw new AppError("Transaction not found", 404);
-
-  const newAmount = input.amount !== undefined ? input.amount : Number(installment.amount);
-
-  if (input.amount !== undefined && input.amount <= 0) {
-    throw new AppError("Jumlah cicilan harus lebih dari 0", 400);
-  }
-
-  // Validasi overpay terhadap total pemasukan + cicilan terverifikasi lainnya
-  const othersVerified = await prisma.installment.aggregate({
-    _sum: { amount: true },
-    where: {
-      transactionId: tx.id,
-      isVerified: true,
-      ...NOT_DELETED,
-      id: { not: id },
-    },
-  });
-
-  const verifiedTotal = Number(othersVerified._sum.amount ?? 0);
-  const remaining = Number(tx.amount) - verifiedTotal;
-
-  if (newAmount > remaining) {
-    throw new AppError(
-      `Tidak boleh overpay. Sisa tagihan: Rp${remaining.toLocaleString("id-ID")}`,
-      400,
-    );
-  }
-
-  const updated = await prisma.installment.update({
-    where: { id },
-    data: {
-      ...(input.amount !== undefined && { amount: newAmount }),
-      ...(input.description !== undefined && { description: input.description }),
-    },
-  });
-
-  // Hitung ulang totalPaid (jumlah cicilan terverifikasi)
-  const verifiedAgg = await prisma.installment.aggregate({
-    _sum: { amount: true },
-    where: { transactionId: tx.id, isVerified: true, ...NOT_DELETED },
-  });
-  const totalPaid = Number(verifiedAgg._sum.amount ?? 0);
-  const newStatus = computeStatus(Number(tx.amount), totalPaid);
-
-  await prisma.transaction.update({
-    where: { id: tx.id },
-    data: { totalPaid, status: newStatus },
-  });
-
-  await invalidateFinanceCache(); // SEBELUM respons — refetch client selalu dapat data segar
-  return toResponse(updated);
+  await invalidateFinanceCache();
+  return toInstallmentResponse(result);
 }
 
-/**
- * Admin verifies a cicilan — marks it as verified and adds to totalPaid.
- */
 export async function verifyInstallment(id: string): Promise<InstallmentResponse> {
-  const installment = await prisma.installment.findFirst({
-    where: { id, ...NOT_DELETED },
+  const result = await prisma.$transaction(async (tx) => {
+    const installment = await tx.installment.findFirst({
+      where: { id, ...NOT_DELETED },
+    });
+
+    if (!installment) throw new AppError("Installment not found", 404);
+    if (installment.isVerified) throw new AppError("Cicilan sudah diverifikasi", 400);
+    if (installment.rejectedAt) throw new AppError("Cicilan sudah ditolak", 400);
+
+    const transaction = await tx.transaction.findFirst({
+      where: { id: installment.transactionId, ...NOT_DELETED },
+    });
+
+    if (!transaction) throw new AppError("Transaction not found", 404);
+
+    const newTotalPaid = transaction.totalPaid.plus(installment.amount);
+    if (newTotalPaid.gt(transaction.amount)) {
+      throw new AppError(
+        `Verifikasi akan melebihi total tagihan (overpay). Sisa: Rp${transaction.amount.minus(transaction.totalPaid).toNumber().toLocaleString("id-ID")}`,
+        400,
+      );
+    }
+
+    const updated = await tx.installment.update({
+      where: { id },
+      data: { isVerified: true, verifiedAt: new Date() },
+    });
+
+    const newStatus = computeStatus(transaction.amount, newTotalPaid);
+    await tx.transaction.update({
+      where: { id: installment.transactionId },
+      data: { totalPaid: newTotalPaid, status: newStatus },
+    });
+
+    return updated;
   });
 
-  if (!installment) {
-    throw new AppError("Installment not found", 404);
-  }
-
-  if (installment.isVerified) {
-    throw new AppError("Cicilan sudah diverifikasi", 400);
-  }
-
-  if (installment.rejectedAt) {
-    throw new AppError("Cicilan sudah ditolak", 400);
-  }
-
-  const tx = await prisma.transaction.findFirst({
-    where: { id: installment.transactionId, ...NOT_DELETED },
-  });
-
-  if (!tx) {
-    throw new AppError("Transaction not found", 404);
-  }
-
-  // Validate no overpay
-  const newTotal = Number(tx.totalPaid) + Number(installment.amount);
-  if (newTotal > Number(tx.amount)) {
-    throw new AppError(
-      `Verifikasi akan melebihi total tagihan (overpay). Sisa: Rp${(Number(tx.amount) - Number(tx.totalPaid)).toLocaleString("id-ID")}`,
-      400,
-    );
-  }
-
-  const updated = await prisma.installment.update({
-    where: { id },
-    data: { isVerified: true, verifiedAt: new Date() },
-  });
-
-  const newTotalPaid = Number(tx.totalPaid) + Number(updated.amount);
-  const newStatus = computeStatus(Number(tx.amount), newTotalPaid);
-
-  await prisma.transaction.update({
-    where: { id: installment.transactionId },
-    data: { totalPaid: newTotalPaid, status: newStatus },
-  });
-
-  await invalidateFinanceCache(); // SEBELUM respons — refetch client selalu dapat data segar
-  return toResponse(updated);
+  await invalidateFinanceCache();
+  return toInstallmentResponse(result);
 }
 
-/**
- * Admin rejects a cicilan — marks it rejected (tidak menambah totalPaid).
- */
 export async function rejectInstallment(id: string): Promise<InstallmentResponse> {
   const installment = await prisma.installment.findFirst({
     where: { id, ...NOT_DELETED },
   });
 
-  if (!installment) {
-    throw new AppError("Installment not found", 404);
-  }
-
-  if (installment.isVerified) {
-    throw new AppError("Cicilan sudah diverifikasi, tidak bisa ditolak", 400);
-  }
-
-  if (installment.rejectedAt) {
-    throw new AppError("Cicilan sudah ditolak", 400);
-  }
+  if (!installment) throw new AppError("Installment not found", 404);
+  if (installment.isVerified) throw new AppError("Cicilan sudah diverifikasi, tidak bisa ditolak", 400);
+  if (installment.rejectedAt) throw new AppError("Cicilan sudah ditolak", 400);
 
   const updated = await prisma.installment.update({
     where: { id },
     data: { rejectedAt: new Date() },
   });
 
-  return toResponse(updated);
+  return toInstallmentResponse(updated);
 }
 
-/**
- * Get all installments (admin) — with transaction + tenant info.
- */
 export async function getAllInstallments(): Promise<InstallmentWithTransactionResponse[]> {
   const installments = await prisma.installment.findMany({
     where: { ...NOT_DELETED },
@@ -297,24 +244,9 @@ export async function getAllInstallments(): Promise<InstallmentWithTransactionRe
     orderBy: { createdAt: "desc" },
   });
 
-  return installments.map((i) => ({
-    ...toResponse(i),
-    transaction: {
-      id: i.transaction.id,
-      amount: i.transaction.amount.toString(),
-      status: i.transaction.status,
-      billingMonth: i.transaction.billingMonth,
-      description: i.transaction.description,
-      user: i.transaction.user
-        ? { name: i.transaction.user.name, roomNumber: i.transaction.user.roomNumber }
-        : null,
-    },
-  }));
+  return installments.map(toInstallmentWithTransactionResponse);
 }
 
-/**
- * Get all installments for a transaction.
- */
 export async function getInstallments(transactionId: string): Promise<InstallmentResponse[]> {
   const tx = await prisma.transaction.findFirst({
     where: { id: transactionId, ...NOT_DELETED },
@@ -326,37 +258,35 @@ export async function getInstallments(transactionId: string): Promise<Installmen
     orderBy: { createdAt: "asc" },
   });
 
-  return installments.map(toResponse);
+  return installments.map(toInstallmentResponse);
 }
 
-/**
- * Admin deletes an installment (soft delete) — reverts totalPaid if it was verified.
- */
 export async function deleteInstallment(id: string): Promise<void> {
-  const installment = await prisma.installment.findFirst({
-    where: { id, ...NOT_DELETED },
-  });
-  if (!installment) throw new AppError("Installment not found", 404);
-
-  const tx = await prisma.transaction.findFirst({
-    where: { id: installment.transactionId, ...NOT_DELETED },
-  });
-  if (!tx) throw new AppError("Transaction not found", 404);
-
-  if (installment.isVerified) {
-    const newTotalPaid = Math.max(0, Number(tx.totalPaid) - Number(installment.amount));
-    const newStatus = computeStatus(Number(tx.amount), newTotalPaid);
-    await prisma.transaction.update({
-      where: { id: installment.transactionId },
-      data: { totalPaid: newTotalPaid, status: newStatus },
+  await prisma.$transaction(async (tx) => {
+    const installment = await tx.installment.findFirst({
+      where: { id, ...NOT_DELETED },
     });
-  }
+    if (!installment) throw new AppError("Installment not found", 404);
 
-  // Soft delete
-  await prisma.installment.update({
-    where: { id },
-    data: { deletedAt: new Date() },
+    const transaction = await tx.transaction.findFirst({
+      where: { id: installment.transactionId, ...NOT_DELETED },
+    });
+    if (!transaction) throw new AppError("Transaction not found", 404);
+
+    if (installment.isVerified) {
+      const newTotalPaid = Prisma.Decimal.max(new Prisma.Decimal(0), transaction.totalPaid.minus(installment.amount));
+      const newStatus = computeStatus(transaction.amount, newTotalPaid);
+      await tx.transaction.update({
+        where: { id: installment.transactionId },
+        data: { totalPaid: newTotalPaid, status: newStatus },
+      });
+    }
+
+    await tx.installment.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
   });
 
-  await invalidateFinanceCache(); // SEBELUM respons — refetch client selalu dapat data segar
+  await invalidateFinanceCache();
 }

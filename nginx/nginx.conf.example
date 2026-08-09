@@ -1,0 +1,100 @@
+# ==============================================================================
+# PRODUCTION ONLY - Nginx VPS Configuration Example for Uangkost
+# NOTE: File ini KHUSUS untuk deployment VPS Production.
+# Pada lokal development (npm run dev), Express secara otomatis menyajikan
+# static file melalui express.static di backend/src/app.ts tanpa memerlukan Nginx.
+# ==============================================================================
+
+server {
+    listen 80;
+    server_name uangkost.example.com api.uangkost.example.com;
+
+    # Redirect HTTP to HTTPS
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name uangkost.example.com;
+
+    # SSL Certificates (managed by Certbot or Let's Encrypt)
+    # ssl_certificate /etc/letsencrypt/live/uangkost.example.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/uangkost.example.com/privkey.pem;
+
+    client_max_body_size 10M;
+
+    # --------------------------------------------------------------------------
+    # Best Practice: Serve static uploaded proof images directly via Nginx
+    # Zero-copy I/O, browser caching headers, and script execution blocking
+    # --------------------------------------------------------------------------
+    location /uploads/ {
+        alias /var/www/uangkost/uploads/;
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+        add_header X-Content-Type-Options "nosniff";
+
+        # Deny execution of scripts or sensitive extensions in uploads
+        location ~* \.(php|sh|pl|py|cgi|exe|js)$ {
+            deny all;
+            return 403;
+        }
+
+        try_files $uri =404;
+    }
+
+    # Proxy request to SvelteKit Frontend Node container
+    location / {
+        proxy_pass http://127.0.0.1:4001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.uangkost.example.com;
+
+    # SSL Certificates
+    # ssl_certificate /etc/letsencrypt/live/api.uangkost.example.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/api.uangkost.example.com/privkey.pem;
+
+    client_max_body_size 10M;
+
+    # Direct static file serving for API domain if accessed via api.uangkost.example.com/uploads/
+    location /uploads/ {
+        alias /var/www/uangkost/uploads/;
+        sendfile on;
+        tcp_nopush on;
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+        add_header X-Content-Type-Options "nosniff";
+
+        location ~* \.(php|sh|pl|py|cgi|exe|js)$ {
+            deny all;
+            return 403;
+        }
+
+        try_files $uri =404;
+    }
+
+    # Proxy request to Express Backend container
+    location / {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

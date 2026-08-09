@@ -12,7 +12,8 @@
     "generate": "npx prisma generate",
     "studio": "npx prisma studio",
     "seed": "tsx prisma/seed.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -42,6 +43,7 @@
     "@types/node": "^26.1.2",
     "prisma": "^7.9.1",
     "tsx": "^4.23.10",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^3.2.7"
   }
 }

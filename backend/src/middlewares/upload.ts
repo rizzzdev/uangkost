@@ -1,25 +1,28 @@
 import multer, { type FileFilterCallback } from "multer";
 import path from "node:path";
 import fs from "node:fs/promises";
+import crypto from "node:crypto";
 import { env } from "../config/env.js";
 import { AppError } from "./error-handler.js";
 import type { Request } from "express";
 
 const uploadDir = path.resolve(env.UPLOAD_DIR);
 
-// Ensure upload directory exists — async init, call at startup
 export async function ensureUploadDir(): Promise<void> {
   await fs.mkdir(uploadDir, { recursive: true });
 }
+
+const ALLOWED_EXTENSIONS = new Set<string>([".jpg", ".jpeg", ".png", ".webp", ".pdf"]);
 
 const storage = multer.diskStorage({
   destination(_req: Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) {
     cb(null, uploadDir);
   },
   filename(_req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname);
-    cb(null, `${uniqueSuffix}${ext}`);
+    const rawExt = path.extname(file.originalname).toLowerCase();
+    const safeExt = ALLOWED_EXTENSIONS.has(rawExt) ? rawExt : ".bin";
+    const uuid = crypto.randomUUID();
+    cb(null, `${uuid}${safeExt}`);
   },
 });
 
@@ -30,7 +33,6 @@ const ALLOWED_MIMETYPES = new Set<string>([
   "application/pdf",
 ]);
 
-/** MIME yang boleh untuk gambar QRIS (jalur khusus settings). */
 export const QRIS_ALLOWED_MIMETYPES = new Set<string>([
   "image/jpeg",
   "image/png",
@@ -39,7 +41,6 @@ export const QRIS_ALLOWED_MIMETYPES = new Set<string>([
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-/** URL publik file hasil upload dari middleware multer ini. */
 export function resolveUploadUrl(filename: string): string {
   return `/uploads/${filename}`;
 }
@@ -49,10 +50,11 @@ function fileFilter(
   file: Express.Multer.File,
   cb: FileFilterCallback,
 ): void {
-  if (ALLOWED_MIMETYPES.has(file.mimetype)) {
+  const rawExt = path.extname(file.originalname).toLowerCase();
+  if (ALLOWED_MIMETYPES.has(file.mimetype) && ALLOWED_EXTENSIONS.has(rawExt)) {
     cb(null, true);
   } else {
-    cb(new AppError("File type not allowed. Use JPEG, PNG, WEBP, or PDF.", 400));
+    cb(new AppError("Tipe file tidak diizinkan. Gunakan JPEG, PNG, WEBP, atau PDF.", 400));
   }
 }
 

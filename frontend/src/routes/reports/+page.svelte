@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { getFinanceFeature } from '$lib/features/index.js';
-  import { api, API_BASE_URL } from '$lib/core/api-client.js';
+  import { api } from '$lib/core/api-client.js';
   import {
     Badge,
     BrandHeader,

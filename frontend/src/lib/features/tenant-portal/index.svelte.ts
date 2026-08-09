@@ -17,15 +17,26 @@ let bankInfo = $state<{
 });
 
 /**
- * Login magic link: token divalidasi (hash + belum expired), lalu di-ROTATE
+ * Login magic link: token divalidasi (hash + belum expired + last4Phone), lalu di-ROTATE
  * (link lama mati) dan sesi cookie httpOnly dipasang. Mengembalikan token baru.
  */
-async function login(accessToken: string): Promise<string> {
+async function login(accessToken: string, last4Phone?: string): Promise<string> {
   const res = await api.post<{ token: string; user: Tenant }>('/tenants/portal-login', {
-    token: accessToken
+    token: accessToken,
+    last4Phone
   });
   tenant = res.user;
   return res.token;
+}
+
+/** Keluar dari portal penghuni: hapus sesi cookie di backend & reset state. */
+async function logout(): Promise<void> {
+  try {
+    await api.post<{ message: string }>('/tenants/portal-logout', {});
+  } finally {
+    tenant = null;
+    transactions = [];
+  }
 }
 
 /** Muat profil + tagihan via sesi cookie (tidak perlu token di URL). */
@@ -92,6 +103,7 @@ export function getTenantPortalFeature() {
       return bankInfo;
     },
     login,
+    logout,
     load,
     loadBank,
     uploadProof,

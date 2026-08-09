@@ -120,7 +120,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 // --- Error Handler ---
-app.use((err: unknown, _req: Request, _res: Response, next: NextFunction) => {
+app.use((err: Error, _req: Request, _res: Response, next: NextFunction) => {
   if (err instanceof SentriError) {
     console.error("[SentriError]", err.message, "|", "status:", err.statusCode);
     next(new AppError(err.message, err.statusCode));
@@ -128,8 +128,8 @@ app.use((err: unknown, _req: Request, _res: Response, next: NextFunction) => {
   }
   next(err);
 });
-app.use((err: unknown, _req: Request, _res: Response, next: NextFunction) => {
-  if (err instanceof Error && !(err instanceof AppError)) {
+app.use((err: Error, _req: Request, _res: Response, next: NextFunction) => {
+  if (!(err instanceof AppError)) {
     console.error("[UnhandledError]", err.message, err.stack?.split("\n").slice(0, 3).join("\n"));
   }
   next(err);

@@ -1,7 +1,7 @@
 import { env as publicEnv } from '$env/dynamic/public';
+import { toast } from '$lib/ui/molecules/toast-store.svelte.js';
 
-const BASE_URL =
-  (publicEnv as Record<string, string>).PUBLIC_API_URL || 'http://localhost:4000/api';
+const BASE_URL = publicEnv.PUBLIC_API_URL || 'http://localhost:4000/api';
 
 export const API_BASE_URL = BASE_URL;
 
@@ -22,24 +22,39 @@ export function getCookie(name: string): string | null {
   return null;
 }
 
+interface ApiResponseShape<T> {
+  success?: boolean;
+  data?: T;
+  message?: string;
+  accessToken?: string;
+  error?: boolean;
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const accessToken = getCookie('access_token');
   const isFormData = options.body instanceof FormData;
 
-  const headers: Record<string, string> = {
+  const requestHeaders: Record<string, string> = {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...((options.headers as Record<string, string>) || {})
   };
 
   if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
+    requestHeaders['Authorization'] = `Bearer ${accessToken}`;
   }
 
-  let res = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-    credentials: 'include'
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers: requestHeaders,
+      credentials: 'include'
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Network error occurred';
+    toast.error(msg);
+    throw new ApiError(msg, 0);
+  }
 
   // Auto-refresh on 401 Unauthorized
   if (res.status === 401) {
@@ -61,27 +76,24 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
           refreshData.accessToken || refreshData.data?.accessToken || getCookie('access_token');
 
         if (newAccessToken) {
-          headers['Authorization'] = `Bearer ${newAccessToken}`;
+          requestHeaders['Authorization'] = `Bearer ${newAccessToken}`;
           res = await fetch(`${BASE_URL}${endpoint}`, {
             ...options,
-            headers,
+            headers: requestHeaders,
             credentials: 'include'
           });
         }
       }
     } catch {
-      // Abaikan error jaringan saat refresh client-side
+      // Ignore network errors during client-side refresh retry
     }
   }
 
-  const json = (await res.json().catch(() => ({}))) as {
-    success?: boolean;
-    data?: T;
-    message?: string;
-  };
+  const json = (await res.json().catch(() => ({}))) as ApiResponseShape<T>;
 
   if (!res.ok || json.success === false) {
-    throw new ApiError(json.message ?? 'Request failed', res.status);
+    const errorMsg = json.message ?? 'Request failed';
+    throw new ApiError(errorMsg, res.status);
   }
 
   return (json.data ?? json) as T;
